@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f7f8fc">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ตารางหนี้">
+<title>ตารางหนี้ — iPhone</title>
+<style>
+:root{--bg:#f7f8fc;--card:#fff;--text:#172033;--muted:#718096;--line:#e7eaf0;--blue:#2563eb;--blueSoft:#eaf2ff;--green:#16803c;--red:#b42318;--yellow:#9a6700}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif}
+body{padding-bottom:env(safe-area-inset-bottom)}button,input,select{font:inherit}button{min-height:44px;border:0;cursor:pointer}
+.app{max-width:680px;margin:auto;padding:calc(16px + env(safe-area-inset-top)) 16px 34px}
+.header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}.title{font-size:27px;font-weight:800;letter-spacing:-.5px}.sub{font-size:13px;color:var(--muted);margin-top:3px}
+.primary{background:var(--blue);color:#fff;border-radius:13px;padding:10px 14px;font-weight:750}.iconbtn{background:#fff;border:1px solid var(--line);border-radius:12px;padding:9px 12px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:14px}.stat{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:13px 12px}.stat small{display:block;font-size:11px;color:var(--muted);margin-bottom:5px}.stat b{font-size:17px}
+.tools{display:flex;gap:8px;margin-bottom:12px}.tools input,.tools select,.field input{width:100%;height:46px;border:1px solid var(--line);background:#fff;border-radius:13px;padding:0 13px;color:var(--text);font-size:16px}.tools input{flex:1}
+.list{display:grid;gap:9px}.card{background:var(--card);border:1px solid var(--line);border-radius:17px;padding:14px}.top{display:flex;justify-content:space-between;gap:10px}.name{font-weight:800;font-size:16px}.muted{color:var(--muted);font-size:12px;margin-top:3px}.remain{text-align:right;font-weight:800}.progress{height:7px;background:#edf0f5;border-radius:99px;overflow:hidden;margin:11px 0 9px}.progress i{display:block;height:100%;background:var(--blue);border-radius:99px}.row{display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:12px;color:var(--muted)}.badge{padding:4px 8px;border-radius:999px;background:#f1f5f9}.badge.done{background:#dcfce7;color:var(--green)}.badge.partial{background:#fff4cc;color:var(--yellow)}.badge.open{background:#fee4e2;color:var(--red)}
+.actions{display:flex;gap:7px;margin-top:11px}.actions button{flex:1;min-height:40px;border:1px solid var(--line);background:#fff;border-radius:10px;font-size:13px}.actions .pay{color:var(--green)}
+.history{margin-top:10px;background:#f8fafc;border-radius:12px;padding:9px 11px;font-size:12px}.history summary{cursor:pointer;font-weight:700}.historyline{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--line)}.historyline:last-child{border:0}
+.panel{background:#fff;border:1px solid var(--line);border-radius:17px;padding:15px;margin-bottom:12px}.panel h3{margin:0 0 12px;font-size:16px}.formgrid{display:grid;gap:10px}.field label{display:block;font-size:12px;color:var(--muted);margin:0 0 5px}.formactions{display:flex;gap:8px;justify-content:flex-end;margin-top:3px}.cancel{background:#fff;border:1px solid var(--line);border-radius:11px;padding:9px 14px}.empty{text-align:center;padding:32px 15px;color:var(--muted);background:#fff;border:1px dashed var(--line);border-radius:17px}
+.note{font-size:11px;color:var(--muted);text-align:center;margin-top:14px;line-height:1.5}
+@media(max-width:430px){.app{padding-left:13px;padding-right:13px}.title{font-size:25px}.stats{gap:6px}.stat{padding:11px 9px}.stat b{font-size:15px}.header .primary{padding-left:11px;padding-right:11px}}
+</style>
+</head>
+<body>
+<main class="app">
+<header class="header"><div><div class="title">ตารางหนี้</div><div class="sub">จัดการหนี้และติดตามการชำระ</div></div><button id="add" class="primary">+ เพิ่มหนี้</button></header>
+<section class="stats">
+<div class="stat"><small>หนี้ทั้งหมด</small><b id="total">฿0</b></div>
+<div class="stat"><small>ชำระแล้ว</small><b id="paid">฿0</b></div>
+<div class="stat"><small>คงเหลือ</small><b id="balance">฿0</b></div>
+</section>
+<div id="panel"></div>
+<div class="tools"><input id="search" type="search" placeholder="ค้นหารายการหนี้"><select id="filter"><option value="all">ทั้งหมด</option><option value="open">ยังไม่ปิด</option><option value="partial">ชำระบางส่วน</option><option value="done">ปิดแล้ว</option></select></div>
+<section id="list" class="list"></section>
+<div class="note">ข้อมูลเวอร์ชันนี้เก็บไว้ในเครื่องด้วย Local Storage ของเบราว์เซอร์</div>
+</main>
+<script>
+const KEY="osiss-debt-iphone-v1";
+let debts;
+try{debts=JSON.parse(localStorage.getItem(KEY)||"null")}catch(e){debts=null}
+if(!Array.isArray(debts))debts=[
+{id:1,name:"บัตรเครดิต",note:"ธนาคาร A",amount:25000,paid:5000,payments:[{date:"2026-08-10",amount:3000},{date:"2026-08-25",amount:2000}]},
+{id:2,name:"ยืมเงินคุณต้น",note:"ค่าใช้จ่ายส่วนตัว",amount:12000,paid:4000,payments:[{date:"2026-08-15",amount:4000}]},
+{id:3,name:"ผ่อนโทรศัพท์",note:"งวดที่เหลือ",amount:18000,paid:18000,payments:[{date:"2026-08-01",amount:10000},{date:"2026-08-20",amount:8000}]}
+];
+let editing=null,paying=null;
+const money=n=>"฿"+Number(n||0).toLocaleString("th-TH",{maximumFractionDigits:2});
+const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(debts))}catch(e){}};
+const status=d=>d.paid>=d.amount?["done","ปิดแล้ว"]:d.paid>0?["partial","ชำระบางส่วน"]:["open","ยังไม่ชำระ"];
+function render(){
+save();let total=debts.reduce((a,d)=>a+d.amount,0),paid=debts.reduce((a,d)=>a+d.paid,0);
+document.querySelector("#total").textContent=money(total);document.querySelector("#paid").textContent=money(paid);document.querySelector("#balance").textContent=money(total-paid);
+let q=document.querySelector("#search").value.trim().toLowerCase(),f=document.querySelector("#filter").value;
+let rows=debts.filter(d=>(!q||(d.name+" "+d.note).toLowerCase().includes(q))&&(f==="all"||status(d)[0]===f));
+document.querySelector("#list").innerHTML=rows.length?rows.map(d=>{
+let bal=Math.max(0,d.amount-d.paid),pct=Math.min(100,d.amount?d.paid/d.amount*100:0),st=status(d);
+return `<article class="card"><div class="top"><div><div class="name">${esc(d.name)}</div><div class="muted">${esc(d.note||"ไม่มีรายละเอียด")}</div></div><div class="remain">${money(bal)}<div class="muted">คงเหลือ</div></div></div>
+<div class="progress"><i style="width:${pct}%"></i></div><div class="row"><span>ทั้งหมด ${money(d.amount)} · จ่าย ${money(d.paid)} · ${pct.toFixed(0)}%</span><span class="badge ${st[0]}">${st[1]}</span></div>
+${d.payments?.length?`<details class="history"><summary>ดูประวัติการชำระ (${d.payments.length} ครั้ง)</summary>${d.payments.slice().reverse().map(p=>`<div class="historyline"><span>${esc(p.date)}</span><b>${money(p.amount)}</b></div>`).join("")}</details>`:""}
+<div class="actions">${bal>0?`<button class="pay" data-pay="${d.id}">ชำระหนี้</button>`:""}<button data-edit="${d.id}">แก้ไข</button><button data-del="${d.id}">ลบ</button></div></article>`
+}).join(""):`<div class="empty">ไม่พบรายการหนี้</div>`;
+}
+function closePanel(){editing=null;paying=null;document.querySelector("#panel").innerHTML=""}
+function debtForm(d){
+editing=d?.id||null;
+document.querySelector("#panel").innerHTML=`<section class="panel"><h3>${d?"แก้ไขรายการหนี้":"เพิ่มรายการหนี้"}</h3><form id="debtForm" class="formgrid">
+<div class="field"><label>ชื่อรายการ / เจ้าหนี้</label><input name="name" required value="${esc(d?.name||"")}" placeholder="เช่น บัตรเครดิต"></div>
+<div class="field"><label>ยอดหนี้ทั้งหมด</label><input name="amount" type="number" min="0.01" step="0.01" required value="${d?.amount||""}" inputmode="decimal" placeholder="25000"></div>
+<div class="field"><label>รายละเอียด</label><input name="note" value="${esc(d?.note||"")}" placeholder="เช่น ธนาคาร / หมายเหตุ"></div>
+<div class="formactions"><button type="button" class="cancel" id="cancel">ยกเลิก</button><button class="primary">บันทึก</button></div></form></section>`;
+document.querySelector("#debtForm").onsubmit=e=>{e.preventDefault();let f=new FormData(e.target),name=String(f.get("name")).trim(),amount=Number(f.get("amount"));if(!name||!Number.isFinite(amount)||amount<=0)return;
+if(editing){let x=debts.find(x=>x.id===editing);if(x){x.name=name;x.note=String(f.get("note")||"").trim();x.amount=Math.max(amount,x.paid)}}else debts.unshift({id:Date.now(),name,note:String(f.get("note")||"").trim(),amount,paid:0,payments:[]});closePanel();render()};
+document.querySelector("#cancel").onclick=closePanel;
+}
+function payForm(d){
+paying=d.id;let max=Math.max(0,d.amount-d.paid);
+document.querySelector("#panel").innerHTML=`<section class="panel"><h3>บันทึกการชำระ</h3><div class="muted" style="margin-bottom:12px">${esc(d.name)} · คงเหลือ ${money(max)}</div>
+<form id="payForm" class="formgrid"><div class="field"><label>จำนวนเงินที่ชำระ</label><input name="amount" type="number" min="0.01" max="${max}" step="0.01" inputmode="decimal" required placeholder="5000"></div>
+<div class="field"><label>วันที่ชำระ</label><input name="date" type="date" required value="${new Date().toISOString().slice(0,10)}"></div>
+<div class="formactions"><button type="button" class="cancel" id="cancelPay">ยกเลิก</button><button class="primary">บันทึกการชำระ</button></div></form></section>`;
+document.querySelector("#payForm").onsubmit=e=>{e.preventDefault();let f=new FormData(e.target),amt=Number(f.get("amount")),date=String(f.get("date")),x=debts.find(x=>x.id===paying),bal=x?x.amount-x.paid:0;if(!x||!Number.isFinite(amt)||amt<=0||amt>bal)return;x.paid+=amt;x.payments.push({date,amount:amt});closePanel();render()};
+document.querySelector("#cancelPay").onclick=closePanel;
+}
+document.querySelector("#add").onclick=()=>debtForm();
+document.querySelector("#search").oninput=render;document.querySelector("#filter").onchange=render;
+document.querySelector("#list").onclick=e=>{let b=e.target.closest("button");if(!b)return;let id=Number(b.dataset.edit||b.dataset.del||b.dataset.pay),d=debts.find(x=>x.id===id);if(!d)return;if(b.dataset.edit)debtForm(d);else if(b.dataset.pay)payForm(d);else if(b.dataset.del&&confirm("ต้องการลบรายการนี้ใช่หรือไม่?")){debts=debts.filter(x=>x.id!==id);render()}};
+render();
+</script>
+</body>
+</html>
