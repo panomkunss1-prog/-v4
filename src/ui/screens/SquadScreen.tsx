@@ -4,6 +4,9 @@ import { formatBaht } from '../../core/money';
 interface Props {
   squad: Player[];
   trainingFacilityLevel: number;
+  importStatus: 'TIER1' | 'PROVISIONAL' | null;
+  statusNote: string | null;
+  documentedConflicts: string[];
 }
 
 const POSITION_LABEL: Record<Position, string> = {
@@ -32,7 +35,13 @@ const CATEGORY_LABEL: Record<string, string> = {
  * the provenance visible: real names are marked, and the fact that ratings
  * are simulated game values rather than researched facts is stated plainly.
  */
-export function SquadScreen({ squad, trainingFacilityLevel }: Props) {
+export function SquadScreen({
+  squad,
+  trainingFacilityLevel,
+  importStatus,
+  statusNote,
+  documentedConflicts,
+}: Props) {
   const sorted = [...squad].sort(
     (a, b) => POSITION_ORDER.indexOf(a.position) - POSITION_ORDER.indexOf(b.position) || b.ability - a.ability,
   );
@@ -55,18 +64,42 @@ export function SquadScreen({ squad, trainingFacilityLevel }: Props) {
 
       {researched.length > 0 && (
         <div className="notice" data-testid="provenance-notice">
-          <b>รายชื่อนักเตะชุดนี้เป็นชื่อจริง</b> นำเข้าจากเอกสาร research ที่ได้รับอนุมัติ
-          {source ? ` (${source})` : ''}
-          <br />
-          แต่ <b>ค่าความสามารถ อายุ และค่าเหนื่อยเป็นค่าจำลองสำหรับเกมเท่านั้น</b>{' '}
-          ไม่ใช่ข้อมูลจริงของนักเตะ และไม่ได้อ้างอิงจากแหล่งใด
+          <div style={{ marginBottom: 6 }}>
+            <b>รายชื่อนักเตะชุดนี้เป็นชื่อจริง</b> นำเข้าจากเอกสาร research ที่ได้รับอนุมัติ
+            <span
+              className={`badge ${importStatus === 'TIER1' ? 'ok' : 'warn'}`}
+              style={{ marginLeft: 6 }}
+              data-testid="import-status"
+            >
+              {importStatus === 'TIER1' ? 'TIER 1' : 'PROVISIONAL'}
+            </span>
+          </div>
+          {source && <div className="muted" style={{ marginBottom: 6 }}>แหล่งข้อมูล: {source}</div>}
+          {statusNote && <div style={{ marginBottom: 6 }}>{statusNote}</div>}
+          <div>
+            <b>ค่าความสามารถ อายุ และค่าเหนื่อยเป็นค่าจำลองสำหรับเกมเท่านั้น</b>{' '}
+            ไม่ใช่ข้อมูลจริงของนักเตะ และไม่ได้อ้างอิงจากแหล่งใด
+          </div>
           {conflicted.length > 0 && (
-            <>
-              <br />
+            <div style={{ marginTop: 4 }}>
               มี {conflicted.length} รายการที่เอกสารต้นทางระบุให้ตรวจสอบเพิ่มเติม (ติดป้าย CONFLICTED)
-            </>
+            </div>
           )}
         </div>
+      )}
+
+      {documentedConflicts.length > 0 && (
+        <section className="panel" data-testid="documented-conflicts">
+          <h4>ข้อมูลที่เอกสารต้นทางระบุว่ายังไม่ยุติ ({documentedConflicts.length})</h4>
+          {documentedConflicts.map((conflict, i) => (
+            <div className="effect" key={i}>
+              <span>{conflict}</span>
+            </div>
+          ))}
+          <div className="muted" style={{ marginTop: 8 }}>
+            ระบบไม่ตัดสินข้อขัดแย้งเหล่านี้เอง — เก็บสถานะไว้ตามที่เอกสารกำหนด
+          </div>
+        </section>
       )}
 
       <section className="panel">
@@ -93,12 +126,20 @@ export function SquadScreen({ squad, trainingFacilityLevel }: Props) {
                       <span className="badge warn" style={{ marginLeft: 6 }}>CONFLICTED</span>
                     )}
                   </td>
-                  <td>{POSITION_LABEL[player.position]}</td>
+                  <td>
+                    {POSITION_LABEL[player.position]}
+                    {player.unsourcedFields.includes('position') && (
+                      <span className="muted" title="ตำแหน่งไม่ได้ระบุในเอกสารต้นทาง — เป็นค่าจำลอง">*</span>
+                    )}
+                  </td>
                   <td>{player.age}</td>
                   <td><b>{player.ability}</b></td>
                   <td>
                     {player.nationality}
-                    {player.nationalityCategory !== 'thai' && (
+                    {player.unsourcedFields.includes('nationality') && (
+                      <span className="muted" title="สัญชาติไม่ได้ระบุในเอกสารต้นทาง">*</span>
+                    )}
+                    {player.nationalityCategory !== 'thai' && player.nationalityCategory !== 'unknown' && (
                       <span className="badge" style={{ marginLeft: 6 }}>
                         {CATEGORY_LABEL[player.nationalityCategory]}
                       </span>
@@ -111,7 +152,7 @@ export function SquadScreen({ squad, trainingFacilityLevel }: Props) {
           </table>
         </div>
         <div className="footnote" style={{ textAlign: 'left', marginTop: 12 }}>
-          * ค่าจำลองสำหรับเกม ไม่ใช่ข้อมูลจริงของนักเตะ
+          * ค่าจำลองสำหรับเกม ไม่ใช่ข้อมูลจริงของนักเตะ หรือเป็นข้อมูลที่เอกสารต้นทางไม่ได้ระบุไว้
         </div>
       </section>
     </div>

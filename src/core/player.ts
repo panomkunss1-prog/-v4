@@ -17,12 +17,26 @@ export type NationalityCategory = 'thai' | 'asean' | 'asian' | 'other' | 'unknow
  * How a player's identity got into the game.
  *
  * RESEARCHED  - name/number/position/nationality come from a sourced research
- *               document the project owner explicitly approved for import.
+ *               document the project owner explicitly approved for import,
+ *               where that document treated the squad as current evidence.
+ * PROVISIONAL - sourced, but the document marked the whole dataset
+ *               PROVISIONAL / NOT APPROVED pending Tier 1 verification.
  * CONFLICTED  - sourced, but the research document flagged the entry as
  *               needing further checking before it is trusted.
  * FICTIONAL   - invented for the prototype; makes no claim about any real person.
  */
-export type PlayerVerification = 'RESEARCHED' | 'CONFLICTED' | 'FICTIONAL';
+export type PlayerVerification =
+  | 'RESEARCHED'
+  | 'PROVISIONAL'
+  | 'CONFLICTED'
+  | 'FICTIONAL';
+
+/**
+ * Fields the engine needs but the source document did not evidence. Their
+ * values are simulated so the club stays playable; listing them here keeps
+ * that fact visible instead of letting a generated value pass as sourced.
+ */
+export type UnsourcedField = 'position' | 'nationality' | 'squadNumber' | 'attributes';
 
 /**
  * Static player definition (PlayerDefinition owns this per brief DATA
@@ -54,6 +68,8 @@ export interface Player {
   verification: PlayerVerification;
   /** True when ability/age/wage are game values rather than sourced facts. */
   attributesSimulated: boolean;
+  /** Every field on this player that is simulated rather than sourced. */
+  unsourcedFields: UnsourcedField[];
   /** Provenance for researched entries, e.g. the club's official Team page. */
   source?: string;
 }

@@ -48,7 +48,10 @@ const T1_SEEDS: ClubSeed[] = [
   { name: 'นครราชสีมา มาสด้า เอฟซี', short: 'โคราช', city: 'นครราชสีมา', stadium: 'เมืองนครราชสีมา สเตเดียม' },
   { name: 'หนองบัว พิชญ เอฟซี', short: 'หนองบัว พิชญ', city: 'หนองบัวลำภู', stadium: 'หนองบัว พิชญ สเตเดียม' },
   { name: 'ตราด เอฟซี', short: 'ตราด', city: 'ตราด', stadium: 'ตราด สเตเดียม' },
-  { name: 'เชียงใหม่ ยูไนเต็ด', short: 'เชียงใหม่', city: 'เชียงใหม่', stadium: 'สนามกีฬาสมโภชเชียงใหม่ 700 ปี' },
+  // Swapped in on Tier-1 evidence: the Pattani FC research document cites a
+  // Thai League fixture announcement placing Pattani in T1 2026/27 as a newly
+  // promoted club. Which club it displaces is NOT established — see README.
+  { name: 'ปัตตานี เอฟซี', short: 'ปัตตานี', city: 'ปัตตานี', stadium: 'สนามกีฬาองค์การบริหารส่วนจังหวัดปัตตานี' },
   { name: 'ศรีสะเกษ ยูไนเต็ด', short: 'ศรีสะเกษ', city: 'ศรีสะเกษ', stadium: 'ศรีสะเกษ สเตเดียม' },
   { name: 'ระยอง เอฟซี', short: 'ระยอง', city: 'ระยอง', stadium: 'ระยอง สเตเดียม' },
 ];

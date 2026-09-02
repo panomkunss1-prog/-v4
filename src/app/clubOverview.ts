@@ -1,6 +1,7 @@
 import type { Club } from '../core/club';
 import type { Player } from '../core/player';
 import { checkRegistration, type RegistrationStatus } from '../systems/registration/eligibility';
+import { researchedSquadFor, type SquadImportStatus } from '../data/researchedSquads.data';
 import { averageAbility, foreignCount } from '../systems/squad/squad';
 import { getRegulation } from '../data/regulations.data';
 import { currentStandings } from './standingsQuery';
@@ -27,6 +28,13 @@ export interface ClubOverview {
   categoryCounts: { thai: number; asean: number; asian: number; other: number; unknown: number };
   /** How many squad members came from an approved research document. */
   researchedPlayers: number;
+  /** Import status of the squad's source document, when there is one. */
+  squadImportStatus: SquadImportStatus | null;
+  squadSource: string | null;
+  squadStatusNote: string | null;
+  /** Unresolved problems the source document itself raised. */
+  documentedConflicts: string[];
+  conflictedPlayers: number;
   /** True when a rule is applied from an unverified source (brief §3). */
   regulationNeedsVerification: boolean;
   regulationNote: string | null;
@@ -39,6 +47,7 @@ export function clubOverview(state: GameState): ClubOverview {
   const squad = playersOfClub(state, club.id);
   const regulation = getRegulation(state.season.competitionId);
   const registration = checkRegistration(squad, regulation);
+  const researched = researchedSquadFor(club.id);
 
   return {
     club,
@@ -52,6 +61,11 @@ export function clubOverview(state: GameState): ClubOverview {
     registrationNotes: registration.notes,
     categoryCounts: registration.categoryCounts,
     researchedPlayers: squad.filter((p) => p.verification !== 'FICTIONAL').length,
+    squadImportStatus: researched?.importStatus ?? null,
+    squadSource: researched?.source ?? null,
+    squadStatusNote: researched?.statusNote ?? null,
+    documentedConflicts: researched?.documentedConflicts ?? [],
+    conflictedPlayers: squad.filter((p) => p.verification === 'CONFLICTED').length,
     regulationNeedsVerification:
       regulation.foreignRegistrationMax.verification !== 'VERIFIED',
     regulationNote: regulation.foreignRegistrationMax.note ?? null,

@@ -1,5 +1,5 @@
 import type { Club } from '../core/club';
-import type { Player, Position } from '../core/player';
+import type { Player, Position, UnsourcedField } from '../core/player';
 import type { Rng } from '../core/rng';
 import { baht } from '../core/money';
 import { clamp } from '../core/result';
@@ -55,20 +55,61 @@ function simulateAttributes(club: Club, isForeign: boolean, rng: Rng) {
   };
 }
 
-function fromResearched(club: Club, entry: ResearchedPlayer, index: number, source: string, rng: Rng): Player {
-  const isForeign = entry.nationalityCategory !== 'thai';
+/**
+ * Fills in positions the source never established, choosing them so the club
+ * can still field a legal side. The values are simulated, listed in the
+ * player's `unsourcedFields`, and shown with an asterisk in the UI — they are
+ * never presented as the player's real position.
+ */
+function fillMissingPositions(entries: readonly ResearchedPlayer[]): Position[] {
+  const need: Record<Position, number> = { GK: 3, DF: 8, MF: 8, FW: 5 };
+  for (const entry of entries) {
+    if (entry.position) need[entry.position] = Math.max(0, need[entry.position] - 1);
+  }
+  // Deterministic order: fill the scarcest requirement first so a squad with
+  // no sourced positions still ends up with keepers, defenders and forwards.
+  const queue: Position[] = [];
+  for (const position of ['GK', 'DF', 'MF', 'FW'] as Position[]) {
+    for (let i = 0; i < need[position]; i += 1) queue.push(position);
+  }
+  return queue;
+}
+
+function fromResearched(
+  club: Club,
+  entry: ResearchedPlayer,
+  index: number,
+  source: string,
+  rng: Rng,
+  fallbackPosition: Position,
+): Player {
+  const unsourcedFields: UnsourcedField[] = ['attributes'];
+  if (!entry.position) unsourcedFields.push('position');
+  if (!entry.nationality) unsourcedFields.push('nationality');
+  if (entry.squadNumber === undefined) unsourcedFields.push('squadNumber');
+
+  // Prefer what the source actually said. A document can establish that a
+  // player is foreign without naming a country, and that IS evidence — it
+  // must count against the foreign limit even though the confederation
+  // category stays unknown. Only where the source established nothing does
+  // this fall back to false, so no unfounded claim is made either way.
+  const isForeign =
+    entry.isForeign ??
+    (entry.nationalityCategory !== 'thai' && entry.nationalityCategory !== 'unknown');
   const attributes = simulateAttributes(club, isForeign, rng);
+
   return {
     id: `${club.id}-P${String(index + 1).padStart(2, '0')}`,
     clubId: club.id,
     name: entry.name,
-    squadNumber: entry.squadNumber,
-    position: entry.position,
+    ...(entry.squadNumber !== undefined ? { squadNumber: entry.squadNumber } : {}),
+    position: entry.position ?? fallbackPosition,
     isForeign,
-    nationality: entry.nationality,
+    nationality: entry.nationality ?? 'ไม่ระบุในเอกสารต้นทาง',
     nationalityCategory: entry.nationalityCategory,
     verification: entry.verification,
     attributesSimulated: true,
+    unsourcedFields,
     source,
     ...attributes,
   };
@@ -83,8 +124,17 @@ function fromResearched(club: Club, entry: ResearchedPlayer, index: number, sour
 export function generateSquad(club: Club, rng: Rng, foreignRegistrationMax: number): Player[] {
   const researched = researchedSquadFor(club.id);
   if (researched && researched.expectedClubName === club.name) {
+    const fallbacks = fillMissingPositions(researched.players);
+    let fallbackIndex = 0;
     return researched.players.map((entry, i) =>
-      fromResearched(club, entry, i, researched.source, rng),
+      fromResearched(
+        club,
+        entry,
+        i,
+        researched.source,
+        rng,
+        entry.position ?? (fallbacks[fallbackIndex++] ?? 'MF'),
+      ),
     );
   }
 
@@ -111,6 +161,7 @@ export function generateSquad(club: Club, rng: Rng, foreignRegistrationMax: numb
       nationalityCategory: isForeign ? ('other' as const) : ('thai' as const),
       verification: 'FICTIONAL' as const,
       attributesSimulated: true,
+      unsourcedFields: ['attributes'] as UnsourcedField[],
       ...attributes,
     };
   });

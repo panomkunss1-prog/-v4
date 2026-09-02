@@ -53,20 +53,27 @@ export function checkRegistration(
 
   if (enforced && rule.value !== null && foreign > rule.value) {
     const categorised = categoryCounts.asean + categoryCounts.asian;
-    const generalOnly = categoryCounts.other + categoryCounts.unknown;
+    const generalOnly = categoryCounts.other;
     const categoryQuotasUnknown =
       !isEnforceable(regulation.aseanRegistrationMax) || !isEnforceable(regulation.asianRegistrationMax);
 
-    if (categorised > 0 && categoryQuotasUnknown) {
+    // Unclassifiable players count too: if the source never named a country
+    // we cannot know which bucket they fall in, so the result is unknowable.
+    if ((categorised > 0 && categoryQuotasUnknown) || categoryCounts.unknown > 0) {
       // The squad only breaches the flat limit because ASEAN/Asian players
       // are being counted in the same bucket as everyone else. Real rules
       // separate them, and those quotas are not established — so this is
       // unknowable, not a violation.
       status = 'INDETERMINATE';
+      const unknownPart =
+        categoryCounts.unknown > 0
+          ? ` และมี ${categoryCounts.unknown} คนที่เอกสารต้นทางไม่ได้ระบุสัญชาติ`
+          : '';
       notes.push(
         `ต่างชาติรวม ${foreign} คน เกินโควตารวม ${rule.value} คน ` +
           `แต่ในจำนวนนี้เป็นอาเซียน ${categoryCounts.asean} คน และเอเชีย ${categoryCounts.asian} คน ` +
-          `(ต่างชาติทั่วไป ${generalOnly} คน) — โควตาแยกหมวดยังไม่ยืนยัน จึงยังสรุปไม่ได้ว่าผิดระเบียบ`,
+          `(ต่างชาติทั่วไป ${generalOnly} คน)${unknownPart} — ` +
+          `โควตาแยกหมวดยังไม่ยืนยัน จึงยังสรุปไม่ได้ว่าผิดระเบียบ`,
       );
     } else {
       status = 'VIOLATION';
@@ -136,21 +143,22 @@ export function applyForeignMatchdayCap(
     .sort((a, b) => b.ability - a.ability);
 
   let foreign = result.filter((p) => p.isForeign).length;
-  while (foreign > limit && replacements.length > 0) {
-    // Drop the weakest foreign player, promote the best domestic replacement.
-    let weakestIdx = -1;
-    let weakest = Infinity;
-    for (let i = 0; i < result.length; i += 1) {
-      const p = result[i] as Player;
-      if (p.isForeign && p.ability < weakest) {
-        weakest = p.ability;
-        weakestIdx = i;
-      }
-    }
-    if (weakestIdx === -1) break;
-    const replacement = replacements.shift();
-    if (!replacement) break;
-    result[weakestIdx] = replacement;
+  // Weakest foreign starters are considered for replacement first.
+  const dropOrder = result
+    .map((player, index) => ({ player, index }))
+    .filter(({ player }) => player.isForeign)
+    .sort((a, b) => a.player.ability - b.player.ability);
+
+  for (const { player, index } of dropOrder) {
+    if (foreign <= limit) break;
+    // Swap LIKE FOR LIKE. Replacing a foreign keeper with an outfielder (or
+    // vice versa) would hand the manager an illegal shape — two keepers and
+    // ten outfielders — which is how this went wrong before real squads,
+    // where keepers were never foreign, exposed it.
+    const matchIdx = replacements.findIndex((r) => r.position === player.position);
+    if (matchIdx === -1) continue;
+    const replacement = replacements.splice(matchIdx, 1)[0] as Player;
+    result[index] = replacement;
     foreign -= 1;
   }
   return result;

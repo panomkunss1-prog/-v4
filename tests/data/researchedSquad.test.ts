@@ -30,7 +30,8 @@ describe('Buriram United researched squad data', () => {
 
   it('matches the source document position breakdown', () => {
     const byPosition = squad!.players.reduce<Record<string, number>>((acc, p) => {
-      acc[p.position] = (acc[p.position] ?? 0) + 1;
+      const key = p.position ?? 'UNKNOWN';
+      acc[key] = (acc[key] ?? 0) + 1;
       return acc;
     }, {});
     expect(byPosition).toEqual({ GK: 3, DF: 10, MF: 11, FW: 6 });

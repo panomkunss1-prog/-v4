@@ -21,6 +21,7 @@ const player = (isForeign: boolean, ability = 10): Player => ({
   nationalityCategory: isForeign ? 'other' : 'thai',
   verification: 'FICTIONAL',
   attributesSimulated: true,
+  unsourcedFields: ['attributes'],
   wage: 1000,
 });
 
@@ -140,5 +141,49 @@ describe('category-aware registration status', () => {
     expect(t1.aseanRegistrationMax.value).toBeNull();
     expect(t1.asianRegistrationMax.verification).toBe('UNKNOWN');
     expect(t1.asianRegistrationMax.value).toBeNull();
+  });
+});
+
+describe('foreign matchday cap swaps like for like', () => {
+  const t1 = getRegulation('T1');
+  const at = (position: Player['position'], isForeign: boolean, ability: number): Player => ({
+    ...player(isForeign, ability),
+    position,
+  });
+
+  it('never turns a legal XI into two keepers by swapping across positions', () => {
+    // A foreign keeper plus 8 foreign outfielders, with a strong domestic
+    // keeper on the bench: the naive "best available" swap used to promote
+    // that keeper into an outfield slot.
+    const selection = [
+      at('GK', true, 12),
+      ...Array.from({ length: 4 }, () => at('DF', true, 12)),
+      ...Array.from({ length: 4 }, () => at('MF', true, 12)),
+      ...Array.from({ length: 2 }, () => at('FW', true, 12)),
+    ];
+    const bench = [
+      at('GK', false, 20),
+      at('DF', false, 10),
+      at('MF', false, 10),
+      at('FW', false, 10),
+    ];
+    const capped = applyForeignMatchdayCap(selection, bench, t1);
+    expect(capped.filter((p) => p.position === 'GK')).toHaveLength(1);
+    expect(capped).toHaveLength(11);
+  });
+
+  it('still reduces the foreign count when same-position cover exists', () => {
+    const selection = Array.from({ length: 9 }, () => at('MF', true, 12));
+    const bench = Array.from({ length: 5 }, () => at('MF', false, 10));
+    const capped = applyForeignMatchdayCap(selection, bench, t1);
+    expect(capped.filter((p) => p.isForeign).length).toBeLessThanOrEqual(7);
+  });
+
+  it('leaves a foreign player in place rather than fielding a wrong-position cover', () => {
+    const selection = Array.from({ length: 9 }, () => at('MF', true, 12));
+    const bench = [at('GK', false, 20)];
+    const capped = applyForeignMatchdayCap(selection, bench, t1);
+    expect(capped.filter((p) => p.position === 'GK')).toHaveLength(0);
+    expect(capped).toHaveLength(9);
   });
 });

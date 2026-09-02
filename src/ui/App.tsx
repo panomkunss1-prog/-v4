@@ -206,7 +206,13 @@ export function App() {
         <DashboardScreen state={state} overview={overview} />
       )}
       {screen === 'squad' && overview && (
-        <SquadScreen squad={overview.squad} trainingFacilityLevel={state.clubs[state.playerClubId]?.trainingFacilityLevel ?? 1} />
+        <SquadScreen
+          squad={overview.squad}
+          trainingFacilityLevel={state.clubs[state.playerClubId]?.trainingFacilityLevel ?? 1}
+          importStatus={overview.squadImportStatus}
+          statusNote={overview.squadStatusNote}
+          documentedConflicts={overview.documentedConflicts}
+        />
       )}
       {screen === 'facilities' && (
         <FacilitiesScreen state={state} onDecide={handleDecisionParams} />

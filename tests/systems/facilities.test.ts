@@ -63,6 +63,7 @@ const player = (age: number, ability = 10): Player => ({
   nationalityCategory: 'thai',
   verification: 'FICTIONAL',
   attributesSimulated: true,
+  unsourcedFields: ['attributes'],
   wage: 1000,
 });
 
