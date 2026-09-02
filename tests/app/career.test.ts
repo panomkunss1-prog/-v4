@@ -1,0 +1,82 @@
+import { describe, expect, it } from 'vitest';
+import { createCareer } from '../../src/app/newCareer';
+import { buildAttributes } from '../../src/core/chairman';
+import type { ChairmanProfile } from '../../src/core/chairman';
+import { T1_CLUBS } from '../../src/data/clubs.seed';
+import { checkRegistration } from '../../src/systems/registration/eligibility';
+import { getRegulation } from '../../src/data/regulations.data';
+import { playersOfClub } from '../../src/app/gameState';
+import { SQUAD_SIZE } from '../../src/data/players.seed';
+
+export const chairman: ChairmanProfile = {
+  name: 'สมชาย ทดสอบ',
+  background: 'businessperson',
+  personality: 'ambitious',
+  goal: 'promotion',
+  attributes: buildAttributes('businessperson', 'ambitious'),
+};
+
+const clubId = T1_CLUBS[0]!.id;
+
+describe('new career', () => {
+  it('creates a complete, playable state', () => {
+    const state = createCareer(chairman, clubId, 'seed-a');
+    expect(state.playerClubId).toBe(clubId);
+    expect(state.season.competitionId).toBe('T1');
+    expect(state.season.participantIds).toHaveLength(16);
+    expect(state.season.currentMatchday).toBe(1);
+    expect(state.season.totalMatchdays).toBe(30);
+    expect(state.fixtures).toHaveLength(240);
+    expect(state.results).toHaveLength(0);
+  });
+
+  it('gives every club a manager and a full squad', () => {
+    const state = createCareer(chairman, clubId, 'seed-a');
+    for (const id of state.season.participantIds) {
+      expect(state.managers[id]).toBeDefined();
+      expect(playersOfClub(state, id)).toHaveLength(SQUAD_SIZE);
+    }
+  });
+
+  it('starts every squad compliant with the registration limit', () => {
+    const state = createCareer(chairman, clubId, 'seed-a');
+    const reg = getRegulation('T1');
+    for (const id of state.season.participantIds) {
+      expect(checkRegistration(playersOfClub(state, id), reg).compliant).toBe(true);
+    }
+  });
+
+  it('is fully reproducible from the same seed text', () => {
+    expect(createCareer(chairman, clubId, 'same')).toEqual(createCareer(chairman, clubId, 'same'));
+  });
+
+  it('produces a different career for a different seed text', () => {
+    const a = createCareer(chairman, clubId, 'one');
+    const b = createCareer(chairman, clubId, 'two');
+    expect(a.players).not.toEqual(b.players);
+  });
+
+  it('sets board objectives from the chairman goal', () => {
+    const state = createCareer({ ...chairman, goal: 'win_title' }, clubId, 's');
+    expect(state.board.objectives[0]?.target).toBe(3);
+  });
+
+  it('opens the books with a positive balance and a real wage bill', () => {
+    const state = createCareer(chairman, clubId, 's');
+    expect(state.finance.balance).toBeGreaterThan(0);
+    expect(state.finance.weeklyWageBill).toBeGreaterThan(0);
+  });
+
+  it('does not store standings in saved state (derived only)', () => {
+    const state = createCareer(chairman, clubId, 's');
+    expect(Object.keys(state)).not.toContain('standings');
+  });
+});
+
+describe('league position before any match', () => {
+  it('reports no position rather than a meaningless #1', async () => {
+    const { clubOverview } = await import('../../src/app/clubOverview');
+    const state = createCareer(chairman, clubId, 'position-seed');
+    expect(clubOverview(state).leaguePosition).toBe(0);
+  });
+});

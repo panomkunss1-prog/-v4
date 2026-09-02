@@ -1,0 +1,70 @@
+import type { Club } from '../core/club';
+import type { Player, Position } from '../core/player';
+import type { Rng } from '../core/rng';
+import { baht } from '../core/money';
+import { clamp } from '../core/result';
+
+/**
+ * FICTIONAL PLAYERS ONLY, generated from a seeded RNG at career creation.
+ * Brief §12 / REAL DATA: no real player is imported into runtime.
+ */
+const THAI_FIRST = [
+  'ธนกฤต', 'ศุภชัย', 'อนุชา', 'วีรภัทร', 'กิตติพงษ์', 'ณัฐวุฒิ', 'พีรพล', 'สหรัฐ',
+  'ชยพล', 'ธีรเดช', 'ภาณุพงศ์', 'อัครเดช', 'จิรายุ', 'ปรเมศวร์', 'สิทธิโชค', 'ทรงพล',
+  'เอกรัตน์', 'นราวิชญ์', 'ก้องภพ', 'ธนดล',
+];
+const THAI_LAST = [
+  'ใจดี', 'ศรีสุข', 'ทองอยู่', 'แสงจันทร์', 'บุญมี', 'พงษ์ไพร', 'รุ่งเรือง', 'วารีทิพย์',
+  'ขจรเดช', 'อินทรพล', 'สุวรรณโชติ', 'ธารทอง', 'ภูผาแก้ว', 'กมลชัย',
+];
+/** Fictional-safe foreign name pool with invented nationality labels. */
+const FOREIGN_NAMES = [
+  'Marco Aveline', 'Diego Ferrante', 'Kwame Obeng', 'Luka Petrovic', 'Hiro Tanabe',
+  'Andre Baptiste', 'Nikolai Verhoven', 'Samuel Okoro', 'Tomas Kral', 'Yuji Nakura',
+  'Pablo Serrano', 'Ivan Mirkovic',
+];
+const FOREIGN_NATIONS = ['บราซิเลีย', 'กานาเรีย', 'เซอร์เบียนา', 'นิปปอนเนีย', 'ไอบีเรีย'];
+
+/** A 22-man squad: 3 GK, 7 DF, 7 MF, 5 FW. */
+const SQUAD_SHAPE: Position[] = [
+  'GK', 'GK', 'GK',
+  'DF', 'DF', 'DF', 'DF', 'DF', 'DF', 'DF',
+  'MF', 'MF', 'MF', 'MF', 'MF', 'MF', 'MF',
+  'FW', 'FW', 'FW', 'FW', 'FW',
+];
+
+export const SQUAD_SIZE = SQUAD_SHAPE.length;
+
+/**
+ * Generates a squad whose foreign contingent is capped by the competition's
+ * registration limit, so a freshly seeded career always starts compliant.
+ */
+export function generateSquad(club: Club, rng: Rng, foreignRegistrationMax: number): Player[] {
+  const targetForeign = Math.min(foreignRegistrationMax, rng.int(2, Math.max(2, foreignRegistrationMax)));
+  const foreignSlots = new Set<number>();
+  while (foreignSlots.size < targetForeign) {
+    // Keepers stay domestic in the prototype to keep selection simple.
+    foreignSlots.add(rng.int(3, SQUAD_SIZE - 1));
+  }
+
+  return SQUAD_SHAPE.map((position, i) => {
+    const isForeign = foreignSlots.has(i);
+    // Club reputation sets the squad's ability band.
+    const base = 4 + club.reputation * 0.55;
+    const ability = clamp(Math.round(rng.float(base - 2, base + 4) + (isForeign ? 1.5 : 0)), 1, 20);
+    const name = isForeign
+      ? rng.pick(FOREIGN_NAMES)
+      : `${rng.pick(THAI_FIRST)} ${rng.pick(THAI_LAST)}`;
+    return {
+      id: `${club.id}-P${String(i + 1).padStart(2, '0')}`,
+      clubId: club.id,
+      name,
+      position,
+      ability,
+      age: rng.int(18, 34),
+      isForeign,
+      nationality: isForeign ? rng.pick(FOREIGN_NATIONS) : 'ไทย',
+      wage: baht(ability * (isForeign ? 9000 : 5000) + rng.int(0, 8000)),
+    };
+  });
+}
