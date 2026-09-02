@@ -14,3 +14,4 @@ export * from './standings';
 export * from './finance';
 export * from './board';
 export * from './decision';
+export * from './sponsor';

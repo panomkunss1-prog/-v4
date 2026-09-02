@@ -2,12 +2,15 @@ import type { MatchResult } from '../core/match';
 import { createRng } from '../core/rng';
 import { getRegulation } from '../data/regulations.data';
 import { simulateMatch, type MatchSide } from '../systems/match/simulateMatch';
-import { applyMatchdayFinances } from '../systems/finance/ledger';
+import { applyMatchdayFinances, post } from '../systems/finance/ledger';
 import { applyResultToBoard } from '../systems/board/objectives';
 import { matchesForMatchday } from '../systems/league/fixtures';
+import { applyTraining } from '../systems/facilities/training';
+import { generateOffers, totalSponsorIncome } from '../systems/sponsorship/offers';
 import { err, ok, type Result } from '../core/result';
 import type { GameState } from './gameState';
 import { playersOfClub } from './gameState';
+import { performanceScore } from './performanceScore';
 
 /**
  * Advances the season by exactly one matchday.
@@ -15,7 +18,9 @@ import { playersOfClub } from './gameState';
  * Every fixture — the player's club and every other club — goes through the
  * single simulateMatch pipeline. Consequences are then applied by their
  * owning systems: finance by the finance system, confidence by the board
- * system. This function orchestrates; it does not contain business rules.
+ * system, player growth by the facilities system, sponsor cash by the
+ * sponsorship system. This function orchestrates; it does not contain
+ * business rules of its own.
  */
 export function advanceMatchday(state: GameState): Result<GameState> {
   if (state.season.status === 'complete') {
@@ -48,6 +53,7 @@ export function advanceMatchday(state: GameState): Result<GameState> {
   let finance = state.finance;
   let board = state.board;
   let fans = state.fans;
+  let players = state.players;
 
   if (ownResult) {
     const isHome = ownResult.homeClubId === state.playerClubId;
@@ -62,10 +68,26 @@ export function advanceMatchday(state: GameState): Result<GameState> {
     fans = moved.fans;
   }
 
+  // Sponsor income is paid every matchday regardless of fixture, like wages.
+  const sponsorIncome = totalSponsorIncome(state.sponsors);
+  if (sponsorIncome > 0) {
+    finance = post(finance, matchday, 'sponsorship', sponsorIncome, 'รายได้จากสปอนเซอร์ที่เซ็นสัญญาไว้');
+  }
+
+  // Training only runs on the player's own squad — it is the club whose
+  // training facility the chairman actually invests in and controls.
+  const club = state.clubs[state.playerClubId];
+  if (club) {
+    const ownPlayers = playersOfClub(state, state.playerClubId);
+    const trained = applyTraining(ownPlayers, club.trainingFacilityLevel, rng);
+    const trainedIds = new Set(trained.map((p) => p.id));
+    players = state.players.map((p) => (trainedIds.has(p.id) ? trained.find((t) => t.id === p.id)! : p));
+  }
+
   const nextMatchday = matchday + 1;
   const seasonComplete = nextMatchday > state.season.totalMatchdays;
 
-  return ok({
+  const nextState: GameState = {
     ...state,
     fixtures: state.fixtures.map((f) =>
       f.matchday === matchday ? { ...f, status: 'played' as const } : f,
@@ -74,11 +96,19 @@ export function advanceMatchday(state: GameState): Result<GameState> {
     finance,
     board,
     fans,
+    players,
     lastMatchday: matchday,
     season: {
       ...state.season,
       currentMatchday: seasonComplete ? matchday : nextMatchday,
       status: seasonComplete ? ('complete' as const) : ('in_progress' as const),
     },
-  });
+  };
+
+  // Sponsor offers refresh each matchday against the club's latest form, so
+  // a promotion push or a slump is reflected next time the chairman looks.
+  const signedNames = new Set(state.sponsors.map((s) => s.name));
+  const offers = generateOffers(performanceScore(nextState), matchday, rng, [...signedNames]);
+
+  return ok({ ...nextState, sponsorOffers: offers });
 }

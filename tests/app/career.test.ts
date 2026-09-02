@@ -80,3 +80,53 @@ describe('league position before any match', () => {
     expect(clubOverview(state).leaguePosition).toBe(0);
   });
 });
+
+describe('club roster integrity', () => {
+  it('has the correct club counts and real stadium identities per tier', async () => {
+    const { T1_CLUBS, T2_CLUBS, T3_CLUBS, ROSTER_VERIFIED } = await import('../../src/data/clubs.seed');
+    expect(T1_CLUBS).toHaveLength(16);
+    expect(T2_CLUBS).toHaveLength(18);
+    expect(T3_CLUBS).toHaveLength(69);
+    expect(ROSTER_VERIFIED.T1).toBe(true);
+    expect(ROSTER_VERIFIED.T2).toBe(true);
+    expect(ROSTER_VERIFIED.T3).toBe(false);
+    for (const club of [...T1_CLUBS, ...T2_CLUBS, ...T3_CLUBS]) {
+      expect(club.stadiumName.length).toBeGreaterThan(0);
+      expect(club.trainingFacilityLevel).toBeGreaterThanOrEqual(1);
+      expect(club.trainingFacilityLevel).toBeLessThanOrEqual(5);
+    }
+  });
+
+  it('gives every club a unique id', async () => {
+    const { ALL_CLUBS } = await import('../../src/data/clubs.seed');
+    expect(new Set(ALL_CLUBS.map((c) => c.id)).size).toBe(ALL_CLUBS.length);
+  });
+});
+
+describe('careers across all three tiers', () => {
+  it('builds a valid T2 career (18 clubs)', () => {
+    const state = createCareer(chairman, 'T2-01', 'seed-t2');
+    expect(state.season.competitionId).toBe('T2');
+    expect(state.season.participantIds).toHaveLength(18);
+    expect(state.fixtures.length).toBeGreaterThan(0);
+  });
+
+  it('builds a valid T3 career (69 clubs) within a reasonable time', () => {
+    const start = Date.now();
+    const state = createCareer(chairman, 'T3-01', 'seed-t3');
+    const elapsed = Date.now() - start;
+    expect(state.season.competitionId).toBe('T3');
+    expect(state.season.participantIds).toHaveLength(69);
+    expect(state.players.length).toBe(69 * 22);
+    expect(elapsed).toBeLessThan(5000);
+  });
+
+  it('advances a T3 matchday correctly despite the large club count', async () => {
+    const { advanceMatchday } = await import('../../src/app/advanceMatchday');
+    const state = createCareer(chairman, 'T3-01', 'seed-t3-advance');
+    const result = advanceMatchday(state);
+    if (!result.ok) throw new Error(result.error);
+    expect(result.value.results.length).toBeGreaterThan(0);
+    expect(result.value.season.currentMatchday).toBe(2);
+  });
+});

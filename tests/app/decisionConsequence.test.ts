@@ -90,9 +90,63 @@ describe('academy investment decision', () => {
 
 describe('unwired decision types', () => {
   it('are rejected explicitly rather than silently ignored', () => {
-    const result = applyDecision(fresh(), 'stadium_investment', { investment: 1_000_000 });
+    const result = applyDecision(fresh(), 'manager_contract', { investment: 1_000_000 });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error).toContain('Slice 1');
+  });
+});
+
+describe('stadium investment decision', () => {
+  it('increases stadium capacity and debits the balance', () => {
+    const before = fresh();
+    const result = applyDecision(before, 'stadium_investment', { investment: 35_000_000 });
+    if (!result.ok) throw new Error(result.error);
+    expect(playerClub(result.value).stadiumCapacity).toBeGreaterThan(playerClub(before).stadiumCapacity);
+    expect(result.value.finance.balance).toBeLessThan(before.finance.balance);
+  });
+});
+
+describe('training facility investment decision', () => {
+  it('increases the training facility level and debits the balance', () => {
+    const before = fresh();
+    const result = applyDecision(before, 'facilities_investment', { investment: 12_000_000 });
+    if (!result.ok) throw new Error(result.error);
+    expect(playerClub(result.value).trainingFacilityLevel).toBeGreaterThan(
+      playerClub(before).trainingFacilityLevel,
+    );
+    expect(result.value.finance.balance).toBeLessThan(before.finance.balance);
+  });
+});
+
+describe('sign sponsor decision', () => {
+  it('signs the requested offer and removes it from the offer list', () => {
+    const before = fresh();
+    const offer = before.sponsorOffers[0]!;
+    const result = applyDecision(before, 'sign_sponsor', { sponsorOfferId: offer.id });
+    if (!result.ok) throw new Error(result.error);
+    expect(result.value.sponsors).toHaveLength(1);
+    expect(result.value.sponsors[0]).toMatchObject({ id: offer.id, name: offer.name });
+    expect(result.value.sponsorOffers.some((o) => o.id === offer.id)).toBe(false);
+  });
+
+  it('rejects signing an offer that no longer exists', () => {
+    const result = applyDecision(fresh(), 'sign_sponsor', { sponsorOfferId: 'nonexistent' });
+    expect(result.ok).toBe(false);
+  });
+
+  it('refuses an 11th sponsor with an explicit error, never a silent cap', () => {
+    const before = fresh();
+    const tenSponsors = Array.from({ length: 10 }, (_, i) => ({
+      id: `S${i}`,
+      name: `Sponsor ${i}`,
+      tier: 'small' as const,
+      incomePerMatchday: 10000,
+      signedOnMatchday: 1,
+    }));
+    const full = { ...before, sponsors: tenSponsors };
+    const offer = full.sponsorOffers[0]!;
+    const result = applyDecision(full, 'sign_sponsor', { sponsorOfferId: offer.id });
+    expect(result.ok).toBe(false);
   });
 });

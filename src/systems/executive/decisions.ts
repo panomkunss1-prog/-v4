@@ -3,8 +3,12 @@ import type { BoardState, FanState } from '../../core/board';
 import type { FinanceState } from '../../core/finance';
 import type { ConsequenceEffect, DecisionParams, DecisionType } from '../../core/decision';
 import type { ChairmanProfile } from '../../core/chairman';
+import type { Sponsor, SponsorOffer } from '../../core/sponsor';
 import { clamp, err, ok, type Result } from '../../core/result';
 import { post } from '../finance/ledger';
+import { upgradeStadium } from '../facilities/stadium';
+import { upgradeTrainingFacility } from '../facilities/training';
+import { canSignMore, signSponsor } from '../sponsorship/offers';
 
 /**
  * EXECUTIVE SYSTEM. Every decision is an organisational lever — budget,
@@ -21,6 +25,8 @@ export interface ExecutiveContext {
   board: BoardState;
   fans: FanState;
   matchday: number;
+  sponsors: Sponsor[];
+  sponsorOffers: SponsorOffer[];
 }
 
 export interface DecisionOutcome {
@@ -31,6 +37,9 @@ export interface DecisionOutcome {
   cost: number;
   summary: string;
   effects: ConsequenceEffect[];
+  /** Present only for decisions that touch the sponsor roster. */
+  sponsors?: Sponsor[];
+  signedOfferId?: string;
 }
 
 export type DecisionHandler = (
@@ -121,10 +130,100 @@ const academyInvestment: DecisionHandler = (ctx, params) => {
   });
 };
 
+/** Stadium investment: spends cash now for permanent extra capacity. */
+const stadiumInvestment: DecisionHandler = (ctx, params) => {
+  const investment = Math.max(0, Math.round(params.investment ?? 0));
+  if (investment <= 0) return err('ต้องระบุจำนวนเงินลงทุนมากกว่า 0');
+  if (investment > ctx.finance.balance) return err('เงินลงทุนเกินเงินคงเหลือของสโมสร');
+
+  const club = upgradeStadium(ctx.club, investment);
+  if (club.stadiumCapacity === ctx.club.stadiumCapacity) {
+    return err('จำนวนเงินน้อยเกินไปที่จะขยายความจุสนาม หรือสนามเต็มความจุสูงสุดของ Prototype แล้ว');
+  }
+
+  const finance = post(ctx.finance, ctx.matchday, 'stadium_investment', -investment, `ปรับปรุง${ctx.club.stadiumName}`);
+  const board = { ...ctx.board, confidence: clamp(ctx.board.confidence + 1, 0, 100) };
+  const fans = { mood: clamp(ctx.fans.mood + 3, 0, 100) };
+
+  return ok({
+    finance,
+    board,
+    fans,
+    club,
+    cost: investment,
+    summary: `ปรับปรุง${ctx.club.stadiumName} ด้วยงบ ${investment.toLocaleString('th-TH')} บาท`,
+    effects: [
+      effect('finance', 'เงินคงเหลือ', ctx.finance.balance, finance.balance),
+      effect('club', 'ความจุสนาม', ctx.club.stadiumCapacity, club.stadiumCapacity),
+      effect('fans', 'อารมณ์แฟนบอล', ctx.fans.mood, fans.mood),
+    ],
+  });
+};
+
+/**
+ * Training facility investment (brief request #3): raises the level that
+ * systems/facilities/training reads each matchday to grow player ability.
+ */
+const facilitiesInvestment: DecisionHandler = (ctx, params) => {
+  const investment = Math.max(0, Math.round(params.investment ?? 0));
+  if (investment <= 0) return err('ต้องระบุจำนวนเงินลงทุนมากกว่า 0');
+  if (investment > ctx.finance.balance) return err('เงินลงทุนเกินเงินคงเหลือของสโมสร');
+
+  const club = upgradeTrainingFacility(ctx.club, investment);
+  if (club.trainingFacilityLevel === ctx.club.trainingFacilityLevel) {
+    return err('จำนวนเงินน้อยเกินไปที่จะยกระดับสนามฝึกซ้อม หรือถึงระดับสูงสุดแล้ว');
+  }
+
+  const finance = post(ctx.finance, ctx.matchday, 'facilities_investment', -investment, 'ปรับปรุงสนามฝึกซ้อม');
+  const board = { ...ctx.board, confidence: clamp(ctx.board.confidence + 1, 0, 100) };
+
+  return ok({
+    finance,
+    board,
+    fans: ctx.fans,
+    club,
+    cost: investment,
+    summary: `ปรับปรุงสนามฝึกซ้อมด้วยงบ ${investment.toLocaleString('th-TH')} บาท`,
+    effects: [
+      effect('finance', 'เงินคงเหลือ', ctx.finance.balance, finance.balance),
+      effect('club', 'ระดับสนามฝึกซ้อม', ctx.club.trainingFacilityLevel, club.trainingFacilityLevel),
+      effect('board', 'ความเชื่อมั่นบอร์ด', ctx.board.confidence, board.confidence),
+    ],
+  });
+};
+
+/** Signs one sponsor from the current offer list, subject to the 10-sponsor cap. */
+const signSponsorDecision: DecisionHandler = (ctx, params) => {
+  const offer = ctx.sponsorOffers.find((o) => o.id === params.sponsorOfferId);
+  if (!offer) return err('ไม่พบข้อเสนอสปอนเซอร์นี้ อาจถูกแทนที่ไปแล้ว');
+  if (!canSignMore(ctx.sponsors)) return err('มีสปอนเซอร์ครบ 10 รายแล้ว ต้องยกเลิกรายเดิมก่อนเซ็นรายใหม่');
+
+  const sponsors = signSponsor(ctx.sponsors, offer, ctx.matchday);
+  const board = { ...ctx.board, confidence: clamp(ctx.board.confidence + 1, 0, 100) };
+
+  return ok({
+    finance: ctx.finance,
+    board,
+    fans: ctx.fans,
+    club: ctx.club,
+    cost: 0,
+    summary: `เซ็นสัญญากับ ${offer.name} (${offer.incomePerMatchday.toLocaleString('th-TH')} บาท/นัด)`,
+    effects: [
+      effect('finance', 'จำนวนสปอนเซอร์', ctx.sponsors.length, sponsors.length),
+      effect('board', 'ความเชื่อมั่นบอร์ด', ctx.board.confidence, board.confidence),
+    ],
+    sponsors,
+    signedOfferId: offer.id,
+  });
+};
+
 /** Registered handlers. Unwired types are rejected, never silently ignored. */
 export const DECISION_HANDLERS: Partial<Record<DecisionType, DecisionHandler>> = {
   budget_allocation: budgetAllocation,
   academy_investment: academyInvestment,
+  stadium_investment: stadiumInvestment,
+  facilities_investment: facilitiesInvestment,
+  sign_sponsor: signSponsorDecision,
 };
 
 export function decide(

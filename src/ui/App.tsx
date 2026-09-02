@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ChairmanProfile } from '../core/chairman';
-import type { DecisionType } from '../core/decision';
+import type { DecisionParams, DecisionType } from '../core/decision';
 import type { GameState } from '../app/gameState';
 import { resultsForMatchday } from '../app/gameState';
 import { createCareer } from '../app/newCareer';
@@ -15,8 +15,20 @@ import { ClubSelectionScreen } from './screens/ClubSelectionScreen';
 import { DashboardScreen } from './screens/DashboardScreen';
 import { DecisionsScreen } from './screens/DecisionsScreen';
 import { MatchdayScreen } from './screens/MatchdayScreen';
+import { SquadScreen } from './screens/SquadScreen';
+import { FacilitiesScreen } from './screens/FacilitiesScreen';
+import { SponsorsScreen } from './screens/SponsorsScreen';
 
-type Screen = 'start' | 'chairman' | 'club' | 'dashboard' | 'decisions' | 'matchday';
+type Screen =
+  | 'start'
+  | 'chairman'
+  | 'club'
+  | 'dashboard'
+  | 'squad'
+  | 'facilities'
+  | 'sponsors'
+  | 'decisions'
+  | 'matchday';
 
 /**
  * UI shell. It holds a reference to the one GameState owned by the app layer
@@ -28,6 +40,7 @@ export function App() {
   const [state, setState] = useState<GameState | null>(null);
   const [draftChairman, setDraftChairman] = useState<ChairmanProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sponsorError, setSponsorError] = useState<string | null>(null);
   const [hasSave, setHasSave] = useState(false);
 
   useEffect(() => {
@@ -57,6 +70,26 @@ export function App() {
       return null;
     },
     [state],
+  );
+
+  const handleDecisionParams = useCallback(
+    (type: DecisionType, params: DecisionParams): string | null => {
+      if (!state) return 'ยังไม่ได้เริ่มอาชีพ';
+      const result = applyDecision(state, type, params);
+      if (!result.ok) return result.error;
+      setState(result.value);
+      return null;
+    },
+    [state],
+  );
+
+  const handleSignSponsor = useCallback(
+    (offerId: string): string | null => {
+      const err = handleDecisionParams('sign_sponsor', { sponsorOfferId: offerId });
+      setSponsorError(err);
+      return err;
+    },
+    [handleDecisionParams],
   );
 
   const handleAdvance = useCallback(() => {
@@ -133,6 +166,27 @@ export function App() {
           ภาพรวมสโมสร
         </button>
         <button
+          className={screen === 'squad' ? 'active' : ''}
+          onClick={() => setScreen('squad')}
+          data-testid="nav-squad"
+        >
+          นักเตะ
+        </button>
+        <button
+          className={screen === 'facilities' ? 'active' : ''}
+          onClick={() => setScreen('facilities')}
+          data-testid="nav-facilities"
+        >
+          สนาม
+        </button>
+        <button
+          className={screen === 'sponsors' ? 'active' : ''}
+          onClick={() => setScreen('sponsors')}
+          data-testid="nav-sponsors"
+        >
+          สปอนเซอร์
+        </button>
+        <button
           className={screen === 'decisions' ? 'active' : ''}
           onClick={() => setScreen('decisions')}
           data-testid="nav-decisions"
@@ -150,6 +204,15 @@ export function App() {
 
       {screen === 'dashboard' && overview && (
         <DashboardScreen state={state} overview={overview} />
+      )}
+      {screen === 'squad' && overview && (
+        <SquadScreen squad={overview.squad} trainingFacilityLevel={state.clubs[state.playerClubId]?.trainingFacilityLevel ?? 1} />
+      )}
+      {screen === 'facilities' && (
+        <FacilitiesScreen state={state} onDecide={handleDecisionParams} />
+      )}
+      {screen === 'sponsors' && (
+        <SponsorsScreen state={state} onSign={handleSignSponsor} error={sponsorError} />
       )}
       {screen === 'decisions' && <DecisionsScreen state={state} onDecide={handleDecision} />}
       {screen === 'matchday' && (

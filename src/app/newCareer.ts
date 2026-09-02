@@ -12,6 +12,7 @@ import { generateFixtures, totalMatchdays } from '../systems/league/fixtures';
 import { initialBoardState, initialFanState } from '../systems/board/objectives';
 import { totalWageBill } from '../systems/squad/squad';
 import type { Squad } from '../systems/squad/squad';
+import { generateOffers } from '../systems/sponsorship/offers';
 import type { GameState } from './gameState';
 
 export const STARTING_YEAR = 2026;
@@ -54,6 +55,8 @@ export function createCareer(
 
   const ownSquad = players.filter((p) => p.clubId === playerClubId);
   const weeklyWageBill = Math.round(totalWageBill(ownSquad) / 4);
+  const initialBoard = initialBoardState(playerClubDef, chairman.goal);
+  const sponsorOffers = generateOffers(initialBoard.confidence, 0, rng);
 
   return {
     seed,
@@ -83,9 +86,11 @@ export function createCareer(
       weeklyWageBill,
       ledger: [],
     },
-    board: initialBoardState(playerClubDef, chairman.goal),
+    board: initialBoard,
     fans: initialFanState(),
     decisions: [],
+    sponsors: [],
+    sponsorOffers,
     lastMatchday: null,
   };
 }

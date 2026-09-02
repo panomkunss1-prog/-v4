@@ -7,7 +7,7 @@ import { playerClub } from './gameState';
 /**
  * Orchestrates one executive decision: asks the executive system for the
  * outcome, then writes each piece of state back to its OWNING system's slice.
- * The UI calls this; it never edits finance/board/club state itself.
+ * The UI calls this; it never edits finance/board/club/sponsor state itself.
  */
 export function applyDecision(
   state: GameState,
@@ -24,6 +24,8 @@ export function applyDecision(
       board: state.board,
       fans: state.fans,
       matchday: state.season.currentMatchday,
+      sponsors: state.sponsors,
+      sponsorOffers: state.sponsorOffers,
     },
     params,
   );
@@ -40,12 +42,19 @@ export function applyDecision(
     effects: outcome.value.effects,
   };
 
+  // A signed offer is removed from the signable list so it can't be double-signed.
+  const sponsorOffers = outcome.value.signedOfferId
+    ? state.sponsorOffers.filter((o) => o.id !== outcome.value.signedOfferId)
+    : state.sponsorOffers;
+
   return ok({
     ...state,
     clubs: { ...state.clubs, [club.id]: outcome.value.club },
     finance: outcome.value.finance,
     board: outcome.value.board,
     fans: outcome.value.fans,
+    sponsors: outcome.value.sponsors ?? state.sponsors,
+    sponsorOffers,
     decisions: [...state.decisions, record],
   });
 }

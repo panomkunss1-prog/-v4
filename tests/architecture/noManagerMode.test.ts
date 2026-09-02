@@ -86,6 +86,7 @@ describe('manager mode drift guard', () => {
       'dismiss_manager',
       'manager_contract',
       'transfer_approval',
+      'sign_sponsor',
     ];
     for (const type of Object.keys(DECISION_HANDLERS) as DecisionType[]) {
       expect(organisational).toContain(type);

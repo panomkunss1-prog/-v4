@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { Club } from '../../core/club';
 import { formatBahtCompact } from '../../core/money';
 import { COMPETITIONS } from '../../data/competitions.data';
-import { clubsForCompetition } from '../../data/clubs.seed';
+import { clubsForCompetition, ROSTER_VERIFIED } from '../../data/clubs.seed';
 import { getRegulation } from '../../data/regulations.data';
 
 interface Props {
@@ -11,15 +11,15 @@ interface Props {
   onBack: () => void;
 }
 
+type CompetitionId = 'T1' | 'T2' | 'T3';
+
 export function ClubSelectionScreen({ chairmanName, onSelected, onBack }: Props) {
-  // Slice 1 models the player's own competition only; T2/T3 arrive in Slice 2.
-  const [competitionId, setCompetitionId] = useState('T1');
+  const [competitionId, setCompetitionId] = useState<CompetitionId>('T1');
   const [selected, setSelected] = useState<string | null>(null);
 
-  const competition = COMPETITIONS.find((c) => c.id === competitionId);
   const regulation = getRegulation(competitionId);
   const clubs: Club[] = clubsForCompetition(competitionId);
-  const supported = competitionId === 'T1';
+  const rosterVerified = ROSTER_VERIFIED[competitionId];
 
   return (
     <div>
@@ -39,7 +39,7 @@ export function ClubSelectionScreen({ chairmanName, onSelected, onBack }: Props)
               key={c.id}
               className={`option ${competitionId === c.id ? 'selected' : ''}`}
               onClick={() => {
-                setCompetitionId(c.id);
+                setCompetitionId(c.id as CompetitionId);
                 setSelected(null);
               }}
               data-testid={`competition-${c.id}`}
@@ -62,11 +62,12 @@ export function ClubSelectionScreen({ chairmanName, onSelected, onBack }: Props)
         </div>
       </section>
 
-      {!supported && (
-        <div className="notice" data-testid="tier-unsupported">
-          Slice 1 รองรับเฉพาะ {competition?.name ? 'ไทยลีก 1' : 'ไทยลีก 1'} เท่านั้น
-          โครงสร้างของ {competition?.name} มีอยู่ในข้อมูลแล้ว แต่การจำลองฤดูกาลของลีกนี้
-          อยู่ในขอบเขต Slice 2 (เลื่อนชั้น/ตกชั้น)
+      {!rosterVerified && (
+        <div className="notice" data-testid="roster-unverified">
+          รายชื่อสโมสรใน{COMPETITIONS.find((c) => c.id === competitionId)?.name}
+          สร้างจากชื่อจังหวัด/อำเภอจริงตามรูปแบบการตั้งชื่อสโมสรไทยลีกที่ใช้จริง
+          แต่ยังไม่ได้ตรวจสอบทีละทีมว่าตรงกับรายชื่อสโมสรจริงในฤดูกาลนี้ —
+          ถือเป็น NEEDS_VERIFICATION เช่นเดียวกับกฎการแข่งขันที่ยังไม่ยืนยัน
         </div>
       )}
 
@@ -79,11 +80,10 @@ export function ClubSelectionScreen({ chairmanName, onSelected, onBack }: Props)
               className={`option ${selected === club.id ? 'selected' : ''}`}
               onClick={() => setSelected(club.id)}
               data-testid={`club-${club.id}`}
-              disabled={!supported}
             >
               {club.shortName}
               <small>
-                ชื่อเสียง {club.reputation} · อะคาเดมี {club.academy} ·{' '}
+                {club.stadiumName} · ชื่อเสียง {club.reputation} ·{' '}
                 {formatBahtCompact(club.startingBalance)}
               </small>
             </button>
@@ -94,7 +94,7 @@ export function ClubSelectionScreen({ chairmanName, onSelected, onBack }: Props)
       <button
         className="primary"
         style={{ width: '100%' }}
-        disabled={!selected || !supported}
+        disabled={!selected}
         data-testid="confirm-club"
         onClick={() => selected && onSelected(selected)}
       >

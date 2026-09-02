@@ -18,7 +18,8 @@ export type DecisionType =
   | 'appoint_manager'
   | 'dismiss_manager'
   | 'manager_contract'
-  | 'transfer_approval';
+  | 'transfer_approval'
+  | 'sign_sponsor';
 
 export interface DecisionParams {
   transferBudget?: Baht;
@@ -27,6 +28,7 @@ export interface DecisionParams {
   strategy?: FinancialStrategy;
   objectiveType?: BoardObjectiveType;
   objectiveTarget?: number;
+  sponsorOfferId?: string;
 }
 
 export interface ConsequenceEffect {
