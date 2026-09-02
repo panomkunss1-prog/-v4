@@ -60,6 +60,9 @@ const player = (age: number, ability = 10): Player => ({
   age,
   isForeign: false,
   nationality: 'ไทย',
+  nationalityCategory: 'thai',
+  verification: 'FICTIONAL',
+  attributesSimulated: true,
   wage: 1000,
 });
 

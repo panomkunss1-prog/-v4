@@ -1,6 +1,6 @@
 import type { Club } from '../core/club';
 import type { Player } from '../core/player';
-import { checkRegistration } from '../systems/registration/eligibility';
+import { checkRegistration, type RegistrationStatus } from '../systems/registration/eligibility';
 import { averageAbility, foreignCount } from '../systems/squad/squad';
 import { getRegulation } from '../data/regulations.data';
 import { currentStandings } from './standingsQuery';
@@ -19,8 +19,14 @@ export interface ClubOverview {
   averageAbility: number;
   foreignPlayers: number;
   foreignRegistrationLimit: number | null;
+  registrationStatus: RegistrationStatus;
   registrationCompliant: boolean;
   registrationViolations: string[];
+  /** Explanations for an INDETERMINATE result (unknown category quotas). */
+  registrationNotes: string[];
+  categoryCounts: { thai: number; asean: number; asian: number; other: number; unknown: number };
+  /** How many squad members came from an approved research document. */
+  researchedPlayers: number;
   /** True when a rule is applied from an unverified source (brief §3). */
   regulationNeedsVerification: boolean;
   regulationNote: string | null;
@@ -40,8 +46,12 @@ export function clubOverview(state: GameState): ClubOverview {
     averageAbility: Math.round(averageAbility(squad) * 10) / 10,
     foreignPlayers: foreignCount(squad),
     foreignRegistrationLimit: registration.foreignLimit,
+    registrationStatus: registration.status,
     registrationCompliant: registration.compliant,
     registrationViolations: registration.violations,
+    registrationNotes: registration.notes,
+    categoryCounts: registration.categoryCounts,
+    researchedPlayers: squad.filter((p) => p.verification !== 'FICTIONAL').length,
     regulationNeedsVerification:
       regulation.foreignRegistrationMax.verification !== 'VERIFIED',
     regulationNote: regulation.foreignRegistrationMax.note ?? null,

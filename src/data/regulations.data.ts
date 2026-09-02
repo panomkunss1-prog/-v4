@@ -17,6 +17,16 @@ export const REGULATIONS: Record<string, CompetitionRegulation> = {
     competitionId: 'T1',
     foreignRegistrationMax: { value: 10, verification: 'VERIFIED' },
     foreignMatchdayMax: { value: 7, verification: 'VERIFIED' },
+    aseanRegistrationMax: {
+      value: null,
+      verification: 'UNKNOWN',
+      note: 'โควตาอาเซียนยังไม่ยืนยัน — ไม่บังคับใช้จนกว่าจะตรวจระเบียบฉบับเต็ม',
+    },
+    asianRegistrationMax: {
+      value: null,
+      verification: 'UNKNOWN',
+      note: 'โควตาเอเชียยังไม่ยืนยัน — ไม่บังคับใช้จนกว่าจะตรวจระเบียบฉบับเต็ม',
+    },
     promotionSlots: { value: 0, verification: 'VERIFIED', note: 'ลีกสูงสุด' },
     relegationSlots: { value: 3, verification: 'NEEDS_VERIFICATION', note: 'ต้องตรวจระเบียบฉบับเต็ม' },
     pointsForWin: 3,
@@ -34,6 +44,16 @@ export const REGULATIONS: Record<string, CompetitionRegulation> = {
       verification: 'UNKNOWN',
       note: 'ยังไม่ทราบกฎ matchday ของ T2 — ไม่บังคับใช้จนกว่าจะตรวจสอบ',
     },
+    aseanRegistrationMax: {
+      value: null,
+      verification: 'UNKNOWN',
+      note: 'โควตาอาเซียนยังไม่ยืนยัน — ไม่บังคับใช้จนกว่าจะตรวจระเบียบฉบับเต็ม',
+    },
+    asianRegistrationMax: {
+      value: null,
+      verification: 'UNKNOWN',
+      note: 'โควตาเอเชียยังไม่ยืนยัน — ไม่บังคับใช้จนกว่าจะตรวจระเบียบฉบับเต็ม',
+    },
     promotionSlots: { value: 3, verification: 'NEEDS_VERIFICATION' },
     relegationSlots: { value: 3, verification: 'NEEDS_VERIFICATION' },
     pointsForWin: 3,
@@ -50,6 +70,16 @@ export const REGULATIONS: Record<string, CompetitionRegulation> = {
       value: null,
       verification: 'UNKNOWN',
       note: 'ยังไม่ทราบกฎ matchday ของ T3 — ไม่บังคับใช้จนกว่าจะตรวจสอบ',
+    },
+    aseanRegistrationMax: {
+      value: null,
+      verification: 'UNKNOWN',
+      note: 'โควตาอาเซียนยังไม่ยืนยัน — ไม่บังคับใช้จนกว่าจะตรวจระเบียบฉบับเต็ม',
+    },
+    asianRegistrationMax: {
+      value: null,
+      verification: 'UNKNOWN',
+      note: 'โควตาเอเชียยังไม่ยืนยัน — ไม่บังคับใช้จนกว่าจะตรวจระเบียบฉบับเต็ม',
     },
     promotionSlots: {
       value: 3,

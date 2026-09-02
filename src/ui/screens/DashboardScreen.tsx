@@ -91,13 +91,42 @@ export function DashboardScreen({ state, overview }: Props) {
           </div>
         </div>
         <div style={{ marginTop: 10 }}>
-          <span className={`badge ${overview.registrationCompliant ? 'ok' : 'bad'}`} data-testid="registration-status">
-            {overview.registrationCompliant ? 'ลงทะเบียนถูกต้อง' : 'ผิดระเบียบการลงทะเบียน'}
+          <span
+            className={`badge ${
+              overview.registrationStatus === 'COMPLIANT'
+                ? 'ok'
+                : overview.registrationStatus === 'INDETERMINATE'
+                  ? 'warn'
+                  : 'bad'
+            }`}
+            data-testid="registration-status"
+          >
+            {overview.registrationStatus === 'COMPLIANT'
+              ? 'ลงทะเบียนถูกต้อง'
+              : overview.registrationStatus === 'INDETERMINATE'
+                ? 'ยังสรุปไม่ได้ — โควตาแยกหมวดยังไม่ยืนยัน'
+                : 'ผิดระเบียบการลงทะเบียน'}
           </span>
           {overview.regulationNeedsVerification && (
             <span className="badge warn" style={{ marginLeft: 6 }}>NEEDS_VERIFICATION</span>
           )}
+          {overview.researchedPlayers > 0 && (
+            <span className="badge ok" style={{ marginLeft: 6 }} data-testid="researched-badge">
+              ชื่อจริง {overview.researchedPlayers} คน
+            </span>
+          )}
         </div>
+        {(overview.categoryCounts.asean > 0 || overview.categoryCounts.asian > 0) && (
+          <div className="muted" style={{ marginTop: 8 }} data-testid="category-breakdown">
+            ไทย {overview.categoryCounts.thai} · อาเซียน {overview.categoryCounts.asean} ·
+            เอเชีย {overview.categoryCounts.asian} · ต่างชาติทั่วไป {overview.categoryCounts.other}
+          </div>
+        )}
+        {overview.registrationNotes.map((note, i) => (
+          <div className="notice" style={{ marginTop: 10, marginBottom: 0 }} key={i} data-testid="registration-note">
+            {note}
+          </div>
+        ))}
         {overview.regulationNote && (
           <div className="notice" style={{ marginTop: 10, marginBottom: 0 }}>
             {overview.regulationNote}

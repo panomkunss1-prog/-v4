@@ -30,19 +30,39 @@ describe('new career', () => {
     expect(state.results).toHaveLength(0);
   });
 
-  it('gives every club a manager and a full squad', () => {
+  it('gives every club a manager and a squad', () => {
     const state = createCareer(chairman, clubId, 'seed-a');
     for (const id of state.season.participantIds) {
       expect(state.managers[id]).toBeDefined();
-      expect(playersOfClub(state, id)).toHaveLength(SQUAD_SIZE);
+      // Fictional clubs get the standard 22; a club with an approved
+      // researched squad keeps its real size instead.
+      const squad = playersOfClub(state, id);
+      const researched = squad.some((p) => p.verification !== 'FICTIONAL');
+      expect(squad.length).toBe(researched ? squad.length : SQUAD_SIZE);
+      expect(squad.length).toBeGreaterThanOrEqual(11);
     }
   });
 
-  it('starts every squad compliant with the registration limit', () => {
+  it('never reports a FALSE registration violation for a real squad', () => {
     const state = createCareer(chairman, clubId, 'seed-a');
     const reg = getRegulation('T1');
     for (const id of state.season.participantIds) {
-      expect(checkRegistration(playersOfClub(state, id), reg).compliant).toBe(true);
+      const report = checkRegistration(playersOfClub(state, id), reg);
+      // A researched squad may legitimately exceed the flat foreign limit
+      // because ASEAN/Asian quotas are counted separately in reality and
+      // are UNKNOWN here — that must read as INDETERMINATE, never VIOLATION.
+      expect(report.status).not.toBe('VIOLATION');
+    }
+  });
+
+  it('keeps fictional squads strictly compliant', () => {
+    const state = createCareer(chairman, clubId, 'seed-a');
+    const reg = getRegulation('T1');
+    for (const id of state.season.participantIds) {
+      const squad = playersOfClub(state, id);
+      if (squad.every((p) => p.verification === 'FICTIONAL')) {
+        expect(checkRegistration(squad, reg).status).toBe('COMPLIANT');
+      }
     }
   });
 

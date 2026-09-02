@@ -23,6 +23,16 @@ export interface CompetitionRegulation {
    * established; the check is skipped rather than a number being invented.
    */
   foreignMatchdayMax: RegulationValue<number | null>;
+  /**
+   * Category quotas. Real Thai League registration is widely understood to
+   * use separate buckets (general / Asian / ASEAN) rather than one flat
+   * foreign limit, but the actual 2026/27 numbers are NOT established here,
+   * so these stay null and UNKNOWN and are never enforced. Nothing is
+   * invented — see registration/eligibility.ts, which reports an
+   * INDETERMINATE result instead of a false violation when this matters.
+   */
+  aseanRegistrationMax: RegulationValue<number | null>;
+  asianRegistrationMax: RegulationValue<number | null>;
   promotionSlots: RegulationValue<number>;
   relegationSlots: RegulationValue<number>;
   pointsForWin: number;

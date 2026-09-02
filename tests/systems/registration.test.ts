@@ -18,6 +18,9 @@ const player = (isForeign: boolean, ability = 10): Player => ({
   age: 25,
   isForeign,
   nationality: isForeign ? 'ต่างชาติ' : 'ไทย',
+  nationalityCategory: isForeign ? 'other' : 'thai',
+  verification: 'FICTIONAL',
+  attributesSimulated: true,
   wage: 1000,
 });
 
@@ -98,5 +101,44 @@ describe('foreign matchday cap on selection', () => {
     const selection = squadWith(11, 0);
     const capped = applyForeignMatchdayCap(selection, [], t1);
     expect(capped).toHaveLength(11);
+  });
+});
+
+describe('category-aware registration status', () => {
+  const t1 = getRegulation('T1');
+  const categorised = (thai: number, asean: number, asian: number, other: number): Player[] => [
+    ...Array.from({ length: thai }, () => ({ ...player(false), nationalityCategory: 'thai' as const })),
+    ...Array.from({ length: asean }, () => ({ ...player(true), nationalityCategory: 'asean' as const })),
+    ...Array.from({ length: asian }, () => ({ ...player(true), nationalityCategory: 'asian' as const })),
+    ...Array.from({ length: other }, () => ({ ...player(true), nationalityCategory: 'other' as const })),
+  ];
+
+  it('reports COMPLIANT when within the flat limit', () => {
+    expect(checkRegistration(categorised(14, 0, 0, 9), t1).status).toBe('COMPLIANT');
+  });
+
+  it('reports INDETERMINATE when the overflow is ASEAN/Asian and those quotas are unknown', () => {
+    const report = checkRegistration(categorised(14, 3, 3, 10), t1);
+    expect(report.status).toBe('INDETERMINATE');
+    expect(report.violations).toHaveLength(0);
+    expect(report.notes).toHaveLength(1);
+  });
+
+  it('still reports a real VIOLATION when the overflow is all general foreigners', () => {
+    const report = checkRegistration(categorised(10, 0, 0, 12), t1);
+    expect(report.status).toBe('VIOLATION');
+    expect(report.violations).toHaveLength(1);
+  });
+
+  it('counts every nationality category', () => {
+    const report = checkRegistration(categorised(14, 3, 3, 10), t1);
+    expect(report.categoryCounts).toEqual({ thai: 14, asean: 3, asian: 3, other: 10, unknown: 0 });
+  });
+
+  it('leaves ASEAN and Asian quotas unenforced because they are UNKNOWN', () => {
+    expect(t1.aseanRegistrationMax.verification).toBe('UNKNOWN');
+    expect(t1.aseanRegistrationMax.value).toBeNull();
+    expect(t1.asianRegistrationMax.verification).toBe('UNKNOWN');
+    expect(t1.asianRegistrationMax.value).toBeNull();
   });
 });
