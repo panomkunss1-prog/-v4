@@ -13,6 +13,7 @@ import { initialBoardState, initialFanState } from '../systems/board/objectives'
 import { totalWageBill } from '../systems/squad/squad';
 import type { Squad } from '../systems/squad/squad';
 import { generateOffers } from '../systems/sponsorship/offers';
+import { preseasonDate } from '../systems/calendar/seasonCalendar';
 import type { GameState } from './gameState';
 
 export const STARTING_YEAR = 2026;
@@ -113,5 +114,7 @@ export function createCareer(
     leagueMembership: initialLeagueMembership(),
     history: [],
     lastMatchday: null,
+    currentDate: preseasonDate(STARTING_YEAR),
+    inbox: [],
   };
 }

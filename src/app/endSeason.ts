@@ -16,6 +16,7 @@ import { resolvePyramid, type PyramidMovement } from '../systems/league/promotio
 import { initialBoardState, judgeSeason, type SeasonVerdict } from '../systems/board/objectives';
 import { totalWageBill } from '../systems/squad/squad';
 import { generateOffers } from '../systems/sponsorship/offers';
+import { preseasonDate } from '../systems/calendar/seasonCalendar';
 import type { Squad } from '../systems/squad/squad';
 import type { GameState, SeasonRecord } from './gameState';
 import { playerClub, playersOfClub } from './gameState';
@@ -257,6 +258,10 @@ export function startNextSeason(state: GameState, outcome: SeasonOutcome): Resul
     leagueMembership,
     history: [...state.history, record],
     lastMatchday: null,
+    currentDate: preseasonDate(year),
+    // A fresh season's inbox starts clean; last season's news is still
+    // available via history for the record.
+    inbox: [],
   };
 
   return ok({ ...next, sponsorOffers: generateOffers(performanceScore(next), 0, rng) });

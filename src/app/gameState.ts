@@ -9,6 +9,8 @@ import type { BoardState, FanState } from '../core/board';
 import type { ExecutiveDecision } from '../core/decision';
 import type { ClubId } from '../core/ids';
 import type { Sponsor, SponsorOffer } from '../core/sponsor';
+import type { GameDate } from '../core/gameDate';
+import type { InboxItem } from '../core/inboxItem';
 import type { Squad } from '../systems/squad/squad';
 
 /**
@@ -51,6 +53,14 @@ export interface GameState {
   history: SeasonRecord[];
   /** Set by advanceMatchday so the result screen can show the last round. */
   lastMatchday: number | null;
+  /**
+   * The chairman's current in-game date. A SIMULATION date produced by
+   * systems/calendar/ — never a sourced real-world fixture date (see that
+   * module's docblock). Advanced only by app/gameClock.ts.
+   */
+  currentDate: GameDate;
+  /** Organisational inbox — results, board/sponsor/season notes. No tactics. */
+  inbox: InboxItem[];
 }
 
 /** Compact end-of-season record. Full match detail is not retained. */

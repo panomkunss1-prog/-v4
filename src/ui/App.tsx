@@ -5,13 +5,14 @@ import type { GameState } from '../app/gameState';
 import { resultsForMatchday } from '../app/gameState';
 import { createCareer } from '../app/newCareer';
 import { applyDecision } from '../app/applyDecision';
-import { advanceMatchday } from '../app/advanceMatchday';
+import { advanceGameClock, markInboxRead, previewUpcoming } from '../app/gameClock';
 import { currentStandings } from '../app/standingsQuery';
 import { clubOverview } from '../app/clubOverview';
 import { clearCareer, loadCareer, saveCareer } from '../app/saveLoad';
 import { StartScreen } from './screens/StartScreen';
 import { ChairmanCreationScreen } from './screens/ChairmanCreationScreen';
 import { ClubSelectionScreen } from './screens/ClubSelectionScreen';
+import { HomeScreen } from './screens/HomeScreen';
 import { DashboardScreen } from './screens/DashboardScreen';
 import { DecisionsScreen } from './screens/DecisionsScreen';
 import { MatchdayScreen } from './screens/MatchdayScreen';
@@ -25,6 +26,7 @@ type Screen =
   | 'start'
   | 'chairman'
   | 'club'
+  | 'home'
   | 'dashboard'
   | 'squad'
   | 'facilities'
@@ -58,6 +60,7 @@ export function App() {
 
   const standings = useMemo(() => (state ? currentStandings(state) : []), [state]);
   const overview = useMemo(() => (state ? clubOverview(state) : null), [state]);
+  const upcoming = useMemo(() => (state ? previewUpcoming(state) : null), [state]);
   const lastResults = useMemo(
     () => (state && state.lastMatchday ? resultsForMatchday(state, state.lastMatchday) : []),
     [state],
@@ -96,9 +99,13 @@ export function App() {
     [handleDecisionParams],
   );
 
+  // The ONE NEXT handler. Home's NEXT button and the Matchday screen's
+  // "advance" button both call this, so there is exactly one code path for
+  // time progression — it always goes through app/gameClock.ts, which
+  // delegates match/league simulation to the existing advanceMatchday().
   const handleAdvance = useCallback(() => {
     if (!state) return;
-    const result = advanceMatchday(state);
+    const result = advanceGameClock(state);
     if (!result.ok) {
       setError(result.error);
       return;
@@ -106,6 +113,14 @@ export function App() {
     setError(null);
     setState(result.value);
   }, [state]);
+
+  const handleOpenInboxItem = useCallback(
+    (itemId: string) => {
+      if (!state) return;
+      setState(markInboxRead(state, itemId));
+    },
+    [state],
+  );
 
   const handleReviewSeason = useCallback(() => {
     if (!state) return;
@@ -128,7 +143,7 @@ export function App() {
     }
     setSeasonOutcome(null);
     setState(result.value);
-    setScreen('dashboard');
+    setScreen('home');
   }, [state, seasonOutcome]);
 
   if (screen === 'start' || !state) {
@@ -147,7 +162,7 @@ export function App() {
             chairmanName={draftChairman.name}
             onSelected={(clubId) => {
               setState(createCareer(draftChairman, clubId));
-              setScreen('dashboard');
+              setScreen('home');
             }}
             onBack={() => setScreen('chairman')}
           />
@@ -163,7 +178,7 @@ export function App() {
               const saved = loadCareer();
               if (saved) {
                 setState(saved);
-                setScreen('dashboard');
+                setScreen('home');
               }
             }}
           />
@@ -200,6 +215,13 @@ export function App() {
       </header>
 
       <nav className="navbar">
+        <button
+          className={screen === 'home' ? 'active' : ''}
+          onClick={() => setScreen('home')}
+          data-testid="nav-home"
+        >
+          หน้าแรก
+        </button>
         <button
           className={screen === 'dashboard' ? 'active' : ''}
           onClick={() => setScreen('dashboard')}
@@ -244,6 +266,17 @@ export function App() {
         </button>
       </nav>
 
+      {screen === 'home' && overview && (
+        <HomeScreen
+          state={state}
+          overview={overview}
+          upcoming={upcoming}
+          onNext={handleAdvance}
+          onReviewSeason={handleReviewSeason}
+          onOpenInboxItem={handleOpenInboxItem}
+          error={error}
+        />
+      )}
       {screen === 'dashboard' && overview && (
         <DashboardScreen state={state} overview={overview} />
       )}
