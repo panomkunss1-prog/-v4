@@ -24,7 +24,7 @@ import { performanceScore } from './performanceScore';
  */
 export function advanceMatchday(state: GameState): Result<GameState> {
   if (state.season.status === 'complete') {
-    return err('ฤดูกาลจบแล้ว — การเลื่อนชั้น/ตกชั้นอยู่นอกขอบเขต Slice 1');
+    return err('ฤดูกาลจบแล้ว — ไปที่หน้าสรุปฤดูกาลเพื่อเริ่มฤดูกาลถัดไป');
   }
 
   const matchday = state.season.currentMatchday;

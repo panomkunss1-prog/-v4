@@ -8,6 +8,7 @@ interface Props {
   standings: Standings;
   lastResults: MatchResult[];
   onAdvance: () => void;
+  onReviewSeason: () => void;
   error: string | null;
 }
 
@@ -16,7 +17,14 @@ interface Props {
  * from the match system and the table from the league system. Nothing here
  * simulates a match or computes a standing.
  */
-export function MatchdayScreen({ state, standings, lastResults, onAdvance, error }: Props) {
+export function MatchdayScreen({
+  state,
+  standings,
+  lastResults,
+  onAdvance,
+  onReviewSeason,
+  error,
+}: Props) {
   const clubName = (clubId: string) => state.clubs[clubId]?.shortName ?? clubId;
   const upcoming = state.fixtures.filter((f) => f.matchday === state.season.currentMatchday);
   const seasonComplete = state.season.status === 'complete';
@@ -36,19 +44,20 @@ export function MatchdayScreen({ state, standings, lastResults, onAdvance, error
               ? 'จบฤดูกาลแล้ว'
               : `นัดที่ ${state.season.currentMatchday} / ${state.season.totalMatchdays}`}
           </h3>
-          <button
-            className="primary"
-            onClick={onAdvance}
-            disabled={seasonComplete}
-            data-testid="advance-matchday"
-          >
-            แข่งนัดถัดไป
-          </button>
+          {seasonComplete ? (
+            <button className="primary" onClick={onReviewSeason} data-testid="review-season">
+              ดูสรุปฤดูกาล
+            </button>
+          ) : (
+            <button className="primary" onClick={onAdvance} data-testid="advance-matchday">
+              แข่งนัดถัดไป
+            </button>
+          )}
         </div>
         {seasonComplete && (
           <div className="notice" style={{ marginTop: 12, marginBottom: 0 }}>
-            ฤดูกาลจบแล้ว — ระบบเลื่อนชั้น/ตกชั้นและการเริ่มฤดูกาลใหม่อยู่ในขอบเขต Slice 2
-            ซึ่งยังไม่ได้พัฒนาในรอบนี้
+            แข่งครบทุกนัดแล้ว — กด "ดูสรุปฤดูกาล" เพื่อดูผลการประเมินจากบอร์ด
+            การเลื่อนชั้น/ตกชั้น และเริ่มฤดูกาลถัดไป
           </div>
         )}
       </section>

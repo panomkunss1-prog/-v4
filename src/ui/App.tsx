@@ -18,6 +18,8 @@ import { MatchdayScreen } from './screens/MatchdayScreen';
 import { SquadScreen } from './screens/SquadScreen';
 import { FacilitiesScreen } from './screens/FacilitiesScreen';
 import { SponsorsScreen } from './screens/SponsorsScreen';
+import { SeasonEndScreen } from './screens/SeasonEndScreen';
+import { endSeason, startNextSeason, type SeasonOutcome } from '../app/endSeason';
 
 type Screen =
   | 'start'
@@ -28,7 +30,8 @@ type Screen =
   | 'facilities'
   | 'sponsors'
   | 'decisions'
-  | 'matchday';
+  | 'matchday'
+  | 'seasonEnd';
 
 /**
  * UI shell. It holds a reference to the one GameState owned by the app layer
@@ -41,6 +44,7 @@ export function App() {
   const [draftChairman, setDraftChairman] = useState<ChairmanProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sponsorError, setSponsorError] = useState<string | null>(null);
+  const [seasonOutcome, setSeasonOutcome] = useState<SeasonOutcome | null>(null);
   const [hasSave, setHasSave] = useState(false);
 
   useEffect(() => {
@@ -103,6 +107,30 @@ export function App() {
     setState(result.value);
   }, [state]);
 
+  const handleReviewSeason = useCallback(() => {
+    if (!state) return;
+    const result = endSeason(state);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    setError(null);
+    setSeasonOutcome(result.value);
+    setScreen('seasonEnd');
+  }, [state]);
+
+  const handleStartNextSeason = useCallback(() => {
+    if (!state || !seasonOutcome) return;
+    const result = startNextSeason(state, seasonOutcome);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    setSeasonOutcome(null);
+    setState(result.value);
+    setScreen('dashboard');
+  }, [state, seasonOutcome]);
+
   if (screen === 'start' || !state) {
     return (
       <main className="app">
@@ -144,6 +172,18 @@ export function App() {
     );
   }
 
+  if (screen === 'seasonEnd' && seasonOutcome) {
+    return (
+      <main className="app">
+        <SeasonEndScreen
+          state={state}
+          outcome={seasonOutcome}
+          onContinue={handleStartNextSeason}
+        />
+      </main>
+    );
+  }
+
   return (
     <main className="app">
       <header className="header">
@@ -152,7 +192,9 @@ export function App() {
             {state.clubs[state.playerClubId]?.shortName ?? ''}
           </div>
           <div className="sub">
-            ประธาน {state.chairman.name} · {state.season.competitionId} ปี {state.year}
+            ประธาน {state.chairman.name} · {state.season.competitionId}
+            {state.season.zone ? ` โซน${state.season.zone}` : ''} · ปี {state.year}
+            {state.history.length > 0 ? ` · ฤดูกาลที่ ${state.history.length + 1}` : ''}
           </div>
         </div>
       </header>
@@ -227,6 +269,7 @@ export function App() {
           standings={standings}
           lastResults={lastResults}
           onAdvance={handleAdvance}
+          onReviewSeason={handleReviewSeason}
           error={error}
         />
       )}

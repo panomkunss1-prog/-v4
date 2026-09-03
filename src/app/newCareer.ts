@@ -17,6 +17,15 @@ import type { GameState } from './gameState';
 
 export const STARTING_YEAR = 2026;
 
+export const COMPETITION_ORDER = ['T1', 'T2', 'T3'] as const;
+
+/** The pyramid as it stands before a ball is kicked. */
+export function initialLeagueMembership(): Record<string, ClubId[]> {
+  return Object.fromEntries(
+    COMPETITION_ORDER.map((id) => [id, clubsForCompetition(id).map((c) => c.id)]),
+  );
+}
+
 /**
  * Builds a complete, playable career. All randomness flows from one seeded
  * RNG so the same seed always produces the same career (duplicate risk D7).
@@ -35,7 +44,16 @@ export function createCareer(
   const seed = seedFromString(seedText ?? `${chairman.name}:${playerClubId}`);
   const rng = createRng(seed);
 
-  const competitionClubs = clubsForCompetition(competitionId);
+  const allCompetitionClubs = clubsForCompetition(competitionId);
+
+  // A zoned competition (T3) is played as regional groups, so the player's
+  // season is their own zone — not all 69 clubs, which would also mean a
+  // 138-matchday season. Other zones are resolved at season end.
+  const playerZone = playerClubDef.zone;
+  const competitionClubs = playerZone
+    ? allCompetitionClubs.filter((c) => c.zone === playerZone)
+    : allCompetitionClubs;
+
   const clubs: Record<ClubId, Club> = {};
   const managers: Record<ClubId, Manager> = {};
   const squads: Record<ClubId, Squad> = {};
@@ -72,7 +90,8 @@ export function createCareer(
       competitionId,
       year: STARTING_YEAR,
       participantIds,
-      zoneParticipants: {},
+      zoneParticipants: playerZone ? { [playerZone]: participantIds } : {},
+      ...(playerZone ? { zone: playerZone } : {}),
       totalMatchdays: totalMatchdays(participantIds.length),
       currentMatchday: 1,
       status: 'in_progress',
@@ -91,6 +110,8 @@ export function createCareer(
     decisions: [],
     sponsors: [],
     sponsorOffers,
+    leagueMembership: initialLeagueMembership(),
+    history: [],
     lastMatchday: null,
   };
 }

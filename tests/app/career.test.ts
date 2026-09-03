@@ -131,14 +131,25 @@ describe('careers across all three tiers', () => {
     expect(state.fixtures.length).toBeGreaterThan(0);
   });
 
-  it('builds a valid T3 career (69 clubs) within a reasonable time', () => {
-    const start = Date.now();
+  it('builds a T3 career as a regional zone, not a 69-club table', () => {
     const state = createCareer(chairman, 'T3-01', 'seed-t3');
-    const elapsed = Date.now() - start;
     expect(state.season.competitionId).toBe('T3');
-    expect(state.season.participantIds).toHaveLength(69);
-    expect(state.players.length).toBe(69 * 22);
-    expect(elapsed).toBeLessThan(5000);
+    expect(state.season.zone).toBeTruthy();
+    // The player plays their zone: roughly a dozen clubs, a sane season
+    // length — not 69 clubs and 138 matchdays.
+    expect(state.season.participantIds.length).toBeGreaterThanOrEqual(10);
+    expect(state.season.participantIds.length).toBeLessThanOrEqual(12);
+    expect(state.season.totalMatchdays).toBeLessThanOrEqual(24);
+    for (const clubId of state.season.participantIds) {
+      expect(state.clubs[clubId]!.zone).toBe(state.season.zone);
+    }
+  });
+
+  it('still records the whole pyramid in league membership', () => {
+    const state = createCareer(chairman, 'T3-01', 'seed-t3');
+    expect(state.leagueMembership.T1).toHaveLength(16);
+    expect(state.leagueMembership.T2).toHaveLength(18);
+    expect(state.leagueMembership.T3).toHaveLength(69);
   });
 
   it('advances a T3 matchday correctly despite the large club count', async () => {

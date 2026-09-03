@@ -45,3 +45,29 @@ export function getCompetition(id: string): Competition {
   if (!found) throw new Error(`Unknown competition: ${id}`);
   return found;
 }
+
+/**
+ * Whether a competition is played as regional zones. This is a property of
+ * the COMPETITION, never of the clubs in it: a club promoted out of a zoned
+ * tier still carries its old zone field, so asking the clubs would wrongly
+ * mark the tier above as zoned once anyone comes up.
+ */
+export function isZonedCompetition(competitionId: string): boolean {
+  return getCompetition(competitionId).zones.length > 0;
+}
+
+/**
+ * The zone a club plays in for a given competition. A club arriving from
+ * another tier keeps its own zone when it has one; otherwise it is placed
+ * deterministically so the groups stay balanced.
+ */
+export function zoneForClub(
+  competitionId: string,
+  clubZone: string | undefined,
+  fallbackIndex: number,
+): string {
+  const zones = getCompetition(competitionId).zones;
+  if (zones.length === 0) return '';
+  if (clubZone && zones.includes(clubZone)) return clubZone;
+  return zones[fallbackIndex % zones.length] as string;
+}

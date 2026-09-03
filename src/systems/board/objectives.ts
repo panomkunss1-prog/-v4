@@ -57,3 +57,74 @@ export function applyResultToBoard(
     fans: { mood: clamp(fans.mood + moodDelta, 0, 100) },
   };
 }
+
+export interface ObjectiveVerdict {
+  description: string;
+  met: boolean;
+  detail: string;
+}
+
+export interface SeasonVerdict {
+  verdicts: ObjectiveVerdict[];
+  allMet: boolean;
+  /** Board confidence after judging the season. */
+  confidence: number;
+  /** True when the board has run out of patience with the chairman. */
+  chairmanUnderPressure: boolean;
+}
+
+/**
+ * Judges the finished season against the objectives the board set at the
+ * start of it. Only the board system decides whether the board is happy.
+ */
+export function judgeSeason(input: {
+  board: BoardState;
+  finalPosition: number;
+  clubCount: number;
+  closingBalance: number;
+  academy: number;
+}): SeasonVerdict {
+  const { board, finalPosition, closingBalance, academy } = input;
+  const verdicts: ObjectiveVerdict[] = board.objectives.map((objective) => {
+    switch (objective.type) {
+      case 'league_position': {
+        const met = finalPosition > 0 && finalPosition <= objective.target;
+        return {
+          description: objective.description,
+          met,
+          detail: `จบอันดับ ${finalPosition} (เป้าหมาย ไม่ต่ำกว่าอันดับ ${objective.target})`,
+        };
+      }
+      case 'financial_stability': {
+        const met = closingBalance >= objective.target;
+        return {
+          description: objective.description,
+          met,
+          detail: `เงินคงเหลือปลายฤดูกาล ${Math.round(closingBalance).toLocaleString('th-TH')} บาท`,
+        };
+      }
+      case 'youth_development': {
+        const met = academy >= objective.target;
+        return {
+          description: objective.description,
+          met,
+          detail: `ระดับอะคาเดมี ${academy} (เป้าหมาย ${objective.target})`,
+        };
+      }
+      default:
+        return { description: objective.description, met: false, detail: 'ยังไม่รองรับการประเมิน' };
+    }
+  });
+
+  const metCount = verdicts.filter((v) => v.met).length;
+  const ratio = verdicts.length === 0 ? 1 : metCount / verdicts.length;
+  const delta = Math.round((ratio - 0.5) * 40);
+  const confidence = clamp(board.confidence + delta, 0, 100);
+
+  return {
+    verdicts,
+    allMet: metCount === verdicts.length,
+    confidence,
+    chairmanUnderPressure: confidence < 25,
+  };
+}
